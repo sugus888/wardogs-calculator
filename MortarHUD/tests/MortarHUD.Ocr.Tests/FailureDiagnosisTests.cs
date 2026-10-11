@@ -1,3 +1,4 @@
+using MortarHUD.Localization;
 using MortarHUD.Capture.ImageProcessing;
 using MortarHUD.Capture.Ocr;
 using MortarHUD.Core.Models;
@@ -151,7 +152,8 @@ public class FailureDiagnosisTests
 
         var description = CoordinateRecognizer.DescribeAttempts(attempts);
 
-        Assert.Contains("(空)", description, StringComparison.Ordinal);
+        // 占位符随界面语言变化（默认泰文 "(ว่าง)"），按文案表断言而不是写死中文。
+        Assert.Contains(Loc.T("Empty"), description, StringComparison.Ordinal);
         Assert.Contains("NO_TEXT_RECOGNIZED", description, StringComparison.Ordinal);
     }
 }
