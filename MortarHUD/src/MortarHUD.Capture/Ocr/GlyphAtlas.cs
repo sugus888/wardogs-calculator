@@ -104,7 +104,7 @@ public sealed class GlyphAtlas
                 return null;
             }
 
-            using var sprite = Cv2.ImRead(spritePath, ImreadModes.Grayscale);
+            using var sprite = UnicodePaths.ReadImage(spritePath, ImreadModes.Grayscale);
             if (sprite.Empty() || sprite.Height < entries.Count * TemplateHeight)
             {
                 return null;
@@ -148,7 +148,7 @@ public sealed class GlyphAtlas
             templates[i].CopyTo(view);
         }
 
-        Cv2.ImWrite(Path.Combine(directory, SpriteFileName), sprite);
+        UnicodePaths.WriteImage(Path.Combine(directory, SpriteFileName), sprite);
         File.WriteAllText(
             Path.Combine(directory, LabelsFileName),
             JsonSerializer.Serialize(entries, new JsonSerializerOptions

@@ -202,7 +202,7 @@ public partial class App : Application
 
         Step(Loc.T("RunOneEndToEndRecognition"), () =>
         {
-            using var sample = Cv2.ImRead(Path.Combine(AppContext.BaseDirectory, "Models", "selftest", "roi.png"));
+            using var sample = UnicodePaths.ReadImage(Path.Combine(AppContext.BaseDirectory, "Models", "selftest", "roi.png"));
             var result = _recognizer!.RecognizeAsync(sample, CancellationToken.None).GetAwaiter().GetResult();
             if (!result.Success || result.Coordinate is not { } c
                 || Math.Abs(c.X - 107.66) > .005 || Math.Abs(c.Y - 114.54) > .005)

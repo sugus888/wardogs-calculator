@@ -126,7 +126,7 @@ public sealed class CaptureDiagnostics : IRecognitionObserver
         try
         {
             Directory.CreateDirectory(Path.GetDirectoryName(path)!);
-            Cv2.ImWrite(path, image);
+            UnicodePaths.WriteImage(path, image);
         }
         catch (Exception ex) when (ex is OpenCVException or IOException or UnauthorizedAccessException)
         {

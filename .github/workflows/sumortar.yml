@@ -93,9 +93,9 @@ jobs:
             $process = Start-Process -FilePath $exe -ArgumentList '--selftest' -WorkingDirectory $env:RUNNER_TEMP -Wait -PassThru -WindowStyle Hidden
             $log = Get-ChildItem -LiteralPath $logDir -Filter '*.log' -ErrorAction SilentlyContinue | Sort-Object LastWriteTime | Select-Object -Last 1
             $tesseract = $log -and (Select-String -LiteralPath $log.FullName -SimpleMatch 'Tesseract+Tesseract')
-            "[$label] exit=$($process.ExitCode) tesseract=$([bool]$tesseract)"
+            Write-Host "[$label] exit=$($process.ExitCode) tesseract=$([bool]$tesseract)"
             if ($process.ExitCode -ne 0 -or -not $tesseract) {
-              if ($log) { Get-Content -LiteralPath $log.FullName -Tail 60 }
+              if ($log) { Get-Content -LiteralPath $log.FullName -Tail 60 | Write-Host }
               return $false
             }
             return $true

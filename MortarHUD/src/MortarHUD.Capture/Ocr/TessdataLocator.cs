@@ -14,9 +14,11 @@ public static class TessdataLocator
     /// </summary>
     public static string Resolve(string? configuredPath)
     {
+        // Tesseract 用 ANSI 文件 API 打开语言包，路径里有泰文等字符就会失败，
+        // 所以找到的目录统一过一遍 EnsureAsciiDirectory（见 UnicodePaths）。
         if (!string.IsNullOrWhiteSpace(configuredPath) && IsUsable(configuredPath))
         {
-            return configuredPath;
+            return UnicodePaths.EnsureAsciiDirectory(configuredPath, FolderName);
         }
 
         var baseDirectory = AppContext.BaseDirectory;
@@ -25,7 +27,7 @@ public static class TessdataLocator
         {
             if (IsUsable(candidate))
             {
-                return candidate;
+                return UnicodePaths.EnsureAsciiDirectory(candidate, FolderName);
             }
         }
 
