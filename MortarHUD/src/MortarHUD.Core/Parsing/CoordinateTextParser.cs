@@ -40,6 +40,20 @@ public sealed partial class CoordinateTextParser : ICoordinateTextParser
         var xCandidates = MatchAxis(repaired, 'x');
         var yCandidates = MatchAxis(repaired, 'y');
 
+        if (_options.InferMissingAxisFromLineOrder)
+        {
+            if (xCandidates.Count == 0 && yCandidates.Count == 1
+                && TryFindBareNumberLine(repaired, YRegex(), after: true) is { } inferredX)
+            {
+                xCandidates.Add(inferredX);
+            }
+            else if (yCandidates.Count == 0 && xCandidates.Count == 1
+                     && TryFindBareNumberLine(repaired, XRegex(), after: false) is { } inferredY)
+            {
+                yCandidates.Add(inferredY);
+            }
+        }
+
         if (xCandidates.Count == 0)
         {
             return CoordinateParseResult.Fail("X_NOT_FOUND", repaired);
@@ -64,6 +78,70 @@ public sealed partial class CoordinateTextParser : ICoordinateTextParser
         }
 
         return CoordinateParseResult.Ok(xCandidates[0], yCandidates[0], repaired);
+    }
+
+    /// <summary>
+    /// 找到带轴字母的那一行，在它之后（或之前）找唯一一行「整行只是一个合法数字」的行。
+    /// 有零行或多行符合时返回 null——不猜。
+    /// </summary>
+    private double? TryFindBareNumberLine(string text, Regex labelledAxis, bool after)
+    {
+        var lines = text.Split('\n');
+        var labelledLine = -1;
+
+        for (var i = 0; i < lines.Length; i++)
+        {
+            if (labelledAxis.IsMatch(lines[i]))
+            {
+                labelledLine = i;
+                break;
+            }
+        }
+
+        if (labelledLine < 0)
+        {
+            return null;
+        }
+
+        var range = after
+            ? Enumerable.Range(labelledLine + 1, lines.Length - labelledLine - 1)
+            : Enumerable.Range(0, labelledLine);
+
+        double? found = null;
+
+        foreach (var index in range)
+        {
+            var line = lines[index].Trim();
+            if (line.Length == 0)
+            {
+                continue;
+            }
+
+            var match = BareNumberRegex().Match(line);
+            if (!match.Success)
+            {
+                continue;
+            }
+
+            var literal = match.Groups["num"].Value;
+            if ((_options.RequireDecimalPoint && !literal.Contains('.'))
+                || (!_options.AllowNegative && literal.StartsWith('-'))
+                || !TryValidateShape(literal)
+                || !double.TryParse(literal, NumberStyles.Float, CultureInfo.InvariantCulture, out var value)
+                || !double.IsFinite(value))
+            {
+                continue;
+            }
+
+            if (found is not null)
+            {
+                return null;
+            }
+
+            found = value;
+        }
+
+        return found;
     }
 
     private static int DistinctCount(List<double> values)
@@ -286,4 +364,9 @@ public sealed partial class CoordinateTextParser : ICoordinateTextParser
     [GeneratedRegex(@"(?<![A-Za-z])[yY][\s:：=.,;'""·]*?(?<num>-?\d{1,3}(?:\.\d{1,3})?)(?![0-9])",
         RegexOptions.CultureInvariant)]
     private static partial Regex YRegex();
+
+    /// <summary>整行只有一个数字（允许首尾零星的标点噪声，不允许字母）。</summary>
+    [GeneratedRegex(@"^[\s.,:;'""·\-_]*?(?<num>-?\d{1,3}\.\d{1,3})[\s.,:;'""·_]*$",
+        RegexOptions.CultureInvariant)]
+    private static partial Regex BareNumberRegex();
 }

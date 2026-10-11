@@ -164,6 +164,20 @@ public sealed class SettingsStore
             settings.SchemaVersion = 5;
         }
 
+        // v5 → v6（ซู-ปืนครก V0.2）：M 连拍从 150ms×4 帧改为 250ms×7 帧。
+        // 只迁移仍是旧出厂值的配置，手调过的保留。
+        if (settings.SchemaVersion < 6)
+        {
+            if (settings.Hotkeys is { AutoCalibrateDelayMs: 150, AutoCalibrateAttempts: 4 })
+            {
+                var defaults = new HotkeySettings();
+                settings.Hotkeys.AutoCalibrateDelayMs = defaults.AutoCalibrateDelayMs;
+                settings.Hotkeys.AutoCalibrateAttempts = defaults.AutoCalibrateAttempts;
+            }
+
+            settings.SchemaVersion = 6;
+        }
+
         settings.Hud.CurrentTheme ??= HudThemeLibrary.CreateDefaultGreen();
 
         // ซู-ปืนครก 新增字段：显式 null 时补回默认值。

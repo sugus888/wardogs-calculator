@@ -34,5 +34,16 @@ public sealed class CoordinateTextParserOptions
     /// </summary>
     public bool RejectAmbiguousAxis { get; init; } = true;
 
+    /// <summary>
+    /// 轴字母被 OCR 吞掉时，按游戏固定的行序补回（ซู-ปืนครก）。
+    /// </summary>
+    /// <remarks>
+    /// 游戏总是 y 在上、x 在下各占一行。实机日志里最常见的失败是 x 字母丢了：
+    /// <c>y109.78 / 98.09</c>。开启后：只找到 y 时，y 行<strong>之后</strong>唯一一行
+    /// 「整行只有一个两位小数」的数字当作 x；只找到 x 时，x 行<strong>之前</strong>的这种行当作 y。
+    /// 小数点、小数位数、范围校验与双流水线一致性要求都不放松。
+    /// </remarks>
+    public bool InferMissingAxisFromLineOrder { get; init; } = true;
+
     public static CoordinateTextParserOptions Default { get; } = new();
 }

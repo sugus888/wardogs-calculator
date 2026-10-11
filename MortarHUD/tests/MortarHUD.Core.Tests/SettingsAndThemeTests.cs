@@ -42,8 +42,28 @@ public sealed class SettingsAndThemeTests : IDisposable
         }));
         var loaded = new SettingsStore(path).Load();
         Assert.Equal(expected, loaded.Hotkeys.AutoCalibrateDelayMs);
-        Assert.Equal(5, loaded.SchemaVersion);
+        Assert.Equal(MortarHudSettings.CurrentSchemaVersion, loaded.SchemaVersion);
         Assert.False(loaded.Ruler.Enabled);
+    }
+
+    /// <summary>
+    /// v6（ซู-ปืนครก V0.2）：旧出厂值 150ms×4 帧在实机上太早，迁到新默认；手调过的保留。
+    /// </summary>
+    [Theory]
+    [InlineData(150, 4, 250, 7)]
+    [InlineData(200, 4, 200, 4)]
+    [InlineData(150, 6, 150, 6)]
+    public void MigrationV6MovesOnlyTheOldMapKeyBurstDefaults(int delay, int attempts, int expectedDelay, int expectedAttempts)
+    {
+        var path = Path.Combine(_sandbox, "settings.json");
+        File.WriteAllText(path, System.Text.Json.JsonSerializer.Serialize(new
+        {
+            schemaVersion = 5, hotkeys = new { autoCalibrateDelayMs = delay, autoCalibrateAttempts = attempts },
+        }));
+        var loaded = new SettingsStore(path).Load();
+        Assert.Equal(expectedDelay, loaded.Hotkeys.AutoCalibrateDelayMs);
+        Assert.Equal(expectedAttempts, loaded.Hotkeys.AutoCalibrateAttempts);
+        Assert.Equal(6, loaded.SchemaVersion);
     }
 
     [Fact]

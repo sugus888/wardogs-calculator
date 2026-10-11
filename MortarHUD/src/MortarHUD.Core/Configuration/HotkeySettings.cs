@@ -41,15 +41,20 @@ public sealed class HotkeySettings
     /// <remarks>
     /// 地图有打开动画，光标也不是瞬间复位的。等太短会截到复位前的画面，
     /// 等太久用户会感觉「迟钝」。150ms 起连续取样，避免等待 OCR 时炮位说明浮层已经盖住坐标；可调。
+    /// <para>
+    /// ซู-ปืนครก V0.2：实机日志（2560x1600，150% 缩放）里按键后约 190–260ms 的前两帧地图都还没画出来，
+    /// 坐标只在约 310ms 之后出现，且地图仍在微动时相邻两帧会差 0.3 个单位。
+    /// 因此起拍推迟到 250ms，并多拍几帧（见 <see cref="AutoCalibrateAttempts"/>）。
+    /// </para>
     /// </remarks>
-    public int AutoCalibrateDelayMs { get; set; } = 150;
+    public int AutoCalibrateDelayMs { get; set; } = 250;
 
     /// <summary>一次开图的短时连拍数量，运行时限制在 2–8 帧。</summary>
     /// <remarks>
     /// 每隔 60ms 冻结一帧，再开始 OCR；连续两帧坐标一致才锁定。
     /// 不等前一帧 OCR 完成后重截，避免说明浮层出现后才拿到画面。
     /// </remarks>
-    public int AutoCalibrateAttempts { get; set; } = 4;
+    public int AutoCalibrateAttempts { get; set; } = 7;
 
     /// <summary>恢复 TDD §18 的出厂默认。</summary>
     public static HotkeySettings CreateDefault() => new();

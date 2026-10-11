@@ -204,4 +204,45 @@ public class CoordinateTextParserTests
         Assert.True(result.Success, result.Error);
         Assert.Equal(107.0, result.X!.Value, precision: 9);
     }
+
+    // ------------------------------------------------------------ ซู-ปืนครก：轴字母丢失
+
+    /// <summary>
+    /// 实机日志里最常见的失败：x 字母没识别出来（"y109.78\n98.09"）。
+    /// 游戏固定 y 在上、x 在下，y 之后唯一的纯数字行就是 x。
+    /// </summary>
+    [Theory]
+    [InlineData("y109.78\n98.09", 98.09, 109.78)]
+    [InlineData("y109.78\n\n98.09", 98.09, 109.78)]
+    [InlineData("y122.43\n.44.03", 44.03, 122.43)]
+    [InlineData("114.47\nx54.98", 54.98, 114.47)]
+    public void Parse_MissingAxisLetter_IsInferredFromLineOrder(string text, double x, double y)
+    {
+        var result = Parser.Parse(text);
+
+        Assert.True(result.Success, result.Error);
+        Assert.Equal(x, result.X!.Value, 3);
+        Assert.Equal(y, result.Y!.Value, 3);
+    }
+
+    /// <summary>补轴字母时不放松任何规则：整数、多候选、行序不对都不猜。</summary>
+    [Theory]
+    [InlineData("y109.78\n98")]            // 没有小数点
+    [InlineData("y109.78\n98.9")]          // 小数位不对
+    [InlineData("y109.78\n98.09\n97.10")] // 两个候选
+    [InlineData("98.09\ny109.78")]         // x 应该在 y 下面
+    [InlineData("x56.44\n22")]             // y 行缺失且只有整数
+    [InlineData("y109.78\nab98.09")]       // 行里有字母，不是纯数字
+    public void Parse_MissingAxisLetter_DoesNotGuess(string text)
+    {
+        Assert.False(Parser.Parse(text).Success);
+    }
+
+    [Fact]
+    public void Parse_MissingAxisLetter_CanBeDisabled()
+    {
+        var strict = new CoordinateTextParser(new CoordinateTextParserOptions { InferMissingAxisFromLineOrder = false });
+
+        Assert.Equal("X_NOT_FOUND", strict.Parse("y109.78\n98.09").Error);
+    }
 }
