@@ -1,0 +1,30 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Core 层不依赖任何 Windows / UI / OCR 具体实现。
+    这里是纯计算与数据模型，必须可以在任意平台上单元测试。
+  -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <RootNamespace>MortarHUD.Core</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="9.0.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\MortarHUD.Localization\MortarHUD.Localization.csproj" />
+  </ItemGroup>
+
+  <!--
+    射表直接嵌入 wardogs-calculator 仓库的 data/weapons.json：
+    网页和 HUD 用同一份数据，改一处两边同时生效。
+  -->
+  <ItemGroup>
+    <EmbeddedResource Include="..\..\..\data\weapons.json"
+                      Link="Ballistics\weapons.json"
+                      LogicalName="MortarHUD.Core.Ballistics.weapons.json" />
+  </ItemGroup>
+
+</Project>

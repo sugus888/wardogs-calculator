@@ -1,0 +1,711 @@
+using System.Diagnostics;
+using MortarHUD.Localization;
+using System.IO;
+using System.Windows;
+using System.Windows.Controls;
+using System.Windows.Input;
+using System.Windows.Media.Imaging;
+using MortarHUD.App.ViewModels;
+using MortarHUD.Capture;
+using MortarHUD.Core.Ballistics;
+using MortarHUD.Core.Configuration;
+using MortarHUD.Core.Models;
+using MortarHUD.Core.Session;
+using MortarHUD.Platform.Windows.Hotkeys;
+using HudMouseButton = MortarHUD.Platform.Windows.Hotkeys.MouseButton;
+using Microsoft.Win32;
+
+namespace MortarHUD.App.Views;
+
+/// <summary>
+/// 设置窗口（TDD §27-§33）。
+/// </summary>
+/// <remarks>
+/// 交互全部走 <see cref="SettingsViewModel"/>；窗口本身只负责
+/// 「弹对话框、跑测试采集、把预览画出来」这些纯 UI 的活。
+/// </remarks>
+public partial class SettingsWindow : Window
+{
+    private readonly MortarHudSettings _settings;
+    private readonly Func<Task> _onApply;
+    private readonly Action<int>? _collectDiagnostics;
+    private readonly Func<Task<CaptureOutcome>> _testCapture;
+    private readonly SettingsViewModel _viewModel;
+
+    private TextBox? _recordingHotkeyBox;
+    private string? _hotkeyBeforeRecording;
+
+    public SettingsWindow(
+        MortarHudSettings settings,
+        Func<Task> onApply,
+        Func<Task<CaptureOutcome>> testCapture, Action<int>? collectDiagnostics = null)
+    {
+        ArgumentNullException.ThrowIfNull(settings);
+
+        _settings = settings;
+        _onApply = onApply;
+        _testCapture = testCapture;
+        _collectDiagnostics = collectDiagnostics;
+
+        InitializeComponent();
+
+        _viewModel = new SettingsViewModel(settings);
+        _viewModel.Changed += OnViewModelChanged;
+        DataContext = _viewModel;
+        RulerPanel.Load(settings.Ruler);
+
+        // 事件在代码里挂，不写在 XAML 上。
+        // XAML 里带默认值的事件绑定会在 InitializeComponent() 期间就引发一次，
+        // 那时这个类的字段还全是 null —— 这正是之前启动即崩溃的原因。
+        LivePreviewCheck.Checked += OnLivePreviewToggled;
+        LivePreviewCheck.Unchecked += OnLivePreviewToggled;
+
+        // 立刻画一次预览：不依赖 Loaded，窗口一构造出来预览区就有内容。
+        // （离屏渲染时 Loaded 根本不会触发，那时也要能看到预览。）
+        RefreshPreview();
+
+        // 加载完成后再画一次：这时才拿到最终的 DPI 与可用尺寸。
+        Loaded += (_, _) => RefreshPreview();
+    }
+
+    private void OnViewModelChanged(object? sender, EventArgs e)
+    {
+        if (LivePreviewCheck.IsChecked == true)
+        {
+            RefreshPreview();
+        }
+    }
+
+    // ================================================================ 预览
+
+    /// <summary>
+    /// 重画右侧预览。
+    /// </summary>
+    /// <remarks>
+    /// 预览用的是 TDD §9 / §20 里那组示例数（炮位 98.09/109.78、目标 99.58/110.07，
+    /// 解算出约 152m / 079.0°）。用它而不是随便编一个数，是为了让用户一眼能看出
+    /// 「显示出来的格式对不对」——特别是方位角的补零和距离的取整。
+    /// </remarks>
+    private void RefreshPreview()
+    {
+        var preview = _viewModel.BuildPreviewSettings();
+
+        var calculator = new MortarCalculator(
+            preview.General.MetersPerCoordinateUnit,
+            preview.General.XPositiveDirection != "West",
+            preview.General.YPositiveDirection != "South");
+
+        var session = new MortarSession(calculator);
+        session.SelectWeapon(WeaponCatalog.Find(preview.General.WeaponId));
+        session.LockGun(new MapCoordinate(98.09, 109.78));
+        session.LockTarget(new MapCoordinate(99.58, 110.07));
+
+        PreviewRenderer.Theme = preview.Hud.CurrentTheme;
+        PreviewRenderer.StatusKind = MortarStatusKind.None;
+        PreviewRenderer.Update(HudLayoutFormatter.BuildLines(session, preview.Hud), "", "");
+
+        // 预览面板尺寸跟着内容走，超出就让它被裁掉——这本身也是在提示用户字号太大了。
+        PreviewRenderer.MinWidth = 240;
+        PreviewRenderer.MinHeight = 90;
+    }
+
+    // ================================================================ 热键录制
+
+    private void OnHotkeyBoxGotFocus(object sender, RoutedEventArgs e)
+    {
+        if (sender is not TextBox box)
+        {
+            return;
+        }
+
+        _recordingHotkeyBox = box;
+        _hotkeyBeforeRecording = box.Text;
+        box.Text = Loc.T("PressAKeyOrMouseButton");
+
+        // 被录制的那个键要拦下来，否则按下 F6 会直接把当前值又填回去。
+        box.PreviewKeyDown -= OnHotkeyBoxKeyDown;
+        box.PreviewKeyDown += OnHotkeyBoxKeyDown;
+    }
+
+    private void OnHotkeyBoxKeyDown(object sender, KeyEventArgs e)
+    {
+        if (sender is not TextBox box)
+        {
+            return;
+        }
+
+        // 只按修饰键不算一次完整录制，继续等主键。
+        if (IsModifierKey(e.Key))
+        {
+            e.Handled = true;
+            return;
+        }
+
+        if (e.Key == Key.Escape)
+        {
+            box.Text = _hotkeyBeforeRecording ?? "";
+            box.MoveFocus(new TraversalRequest(FocusNavigationDirection.Next));
+            e.Handled = true;
+            return;
+        }
+
+        var definition = BuildDefinition(Keyboard.Modifiers, e.Key);
+
+        if (!definition.IsValid)
+        {
+            box.Text = Loc.T("ThisKeyIsNotSupported");
+            e.Handled = true;
+            return;
+        }
+
+        box.Text = definition.ToDisplayString();
+        ApplyHotkeyText(box, definition.ToConfigString());
+
+        box.MoveFocus(new TraversalRequest(FocusNavigationDirection.Next));
+        e.Handled = true;
+    }
+
+    private void ApplyHotkeyText(TextBox box, string text)
+    {
+        if (ReferenceEquals(box, GunHotkeyBox))
+        {
+            _viewModel.CaptureGun = text;
+        }
+        else if (ReferenceEquals(box, TargetHotkeyBox))
+        {
+            _viewModel.CaptureTarget = text;
+        }
+        else if (ReferenceEquals(box, ToggleHotkeyBox))
+        {
+            _viewModel.ToggleHudHotkey = text;
+        }
+        else if (ReferenceEquals(box, SettingsHotkeyBox))
+        {
+            _viewModel.OpenSettingsHotkey = text;
+        }
+        else if (ReferenceEquals(box, WeaponHotkeyBox))
+        {
+            _viewModel.CycleWeaponHotkey = text;
+        }
+        else if (ReferenceEquals(box, MapKeyBox))
+        {
+            _viewModel.AutoCalibrateKey = text;
+        }
+    }
+
+    /// <summary>
+    /// 录制鼠标键。
+    /// </summary>
+    /// <remarks>
+    /// 要求输入框<strong>已经获得焦点</strong>之后才录制：
+    /// 否则第一次左键点击会先去聚焦、同时又被录成「鼠标左键」，
+    /// 用户就再也没法用鼠标点进这个框了。
+    /// 所以第一次点击只是聚焦，第二次点击才录制。
+    /// </remarks>
+    private void OnHotkeyBoxMouseDown(object sender, MouseButtonEventArgs e)
+    {
+        if (!IsLoaded || _viewModel is null || sender is not TextBox box || !box.IsFocused)
+        {
+            return;
+        }
+
+        var button = e.ChangedButton switch
+        {
+            System.Windows.Input.MouseButton.Left => HudMouseButton.Left,
+            System.Windows.Input.MouseButton.Right => HudMouseButton.Right,
+            System.Windows.Input.MouseButton.Middle => HudMouseButton.Middle,
+            System.Windows.Input.MouseButton.XButton1 => HudMouseButton.X1,
+            System.Windows.Input.MouseButton.XButton2 => HudMouseButton.X2,
+            _ => (HudMouseButton)0,
+        };
+
+        if (button == (HudMouseButton)0)
+        {
+            return;
+        }
+
+        var definition = new HotkeyDefinition(
+            BuildModifierFlags(Keyboard.Modifiers), (uint)button, HotkeyDevice.Mouse);
+
+        box.Text = definition.ToDisplayString();
+        ApplyHotkeyText(box, definition.ToConfigString());
+
+        box.MoveFocus(new TraversalRequest(FocusNavigationDirection.Next));
+        e.Handled = true;
+    }
+
+    private static uint BuildModifierFlags(ModifierKeys modifiers)
+    {
+        uint flags = 0;
+
+        if (modifiers.HasFlag(ModifierKeys.Control))
+        {
+            flags |= 0x0002;
+        }
+
+        if (modifiers.HasFlag(ModifierKeys.Alt))
+        {
+            flags |= 0x0001;
+        }
+
+        if (modifiers.HasFlag(ModifierKeys.Shift))
+        {
+            flags |= 0x0004;
+        }
+
+        if (modifiers.HasFlag(ModifierKeys.Windows))
+        {
+            flags |= 0x0008;
+        }
+
+        return flags;
+    }
+
+    private static bool IsModifierKey(Key key)
+        => key is Key.LeftCtrl or Key.RightCtrl
+            or Key.LeftAlt or Key.RightAlt
+            or Key.LeftShift or Key.RightShift
+            or Key.LWin or Key.RWin
+            or Key.System;
+
+    /// <summary>把 WPF 的按键组合翻成项目的热键定义。</summary>
+    private static HotkeyDefinition BuildDefinition(ModifierKeys modifiers, Key key)
+        => new(BuildModifierFlags(modifiers), (uint)KeyInterop.VirtualKeyFromKey(key));
+
+    private void OnRestoreHotkeysClicked(object sender, RoutedEventArgs e)
+    {
+        var defaults = HotkeySettings.CreateDefault();
+
+        _viewModel.CaptureGun = defaults.CaptureGun;
+        _viewModel.CaptureTarget = defaults.CaptureTarget;
+        _viewModel.ToggleHudHotkey = defaults.ToggleHud;
+        _viewModel.OpenSettingsHotkey = defaults.OpenSettings;
+        _viewModel.CycleWeaponHotkey = defaults.CycleWeapon;
+        _viewModel.AutoCalibrateEnabled = defaults.AutoCalibrateEnabled;
+        _viewModel.AutoCalibrateKey = defaults.AutoCalibrateKey;
+        _viewModel.AutoCalibrateDelayMs = defaults.AutoCalibrateDelayMs;
+
+        StatusText.Text = Loc.T("HotkeysRestoredToDefaultsClickApplyToTakeEffect");
+    }
+
+    // ================================================================ HUD 位置
+
+    private async void OnUnlockPositionToggled(object sender, RoutedEventArgs e)
+    {
+        if (!IsLoaded)
+        {
+            return;
+        }
+
+        StatusText.Text = UnlockPositionCheck.IsChecked == true
+            ? Loc.T("HUDUnlockedDragItOnScreenToMoveItUncheckToRestor")
+            : Loc.T("HUDLockedClickThroughRestored");
+
+        _settings.Hud.PositionUnlocked = _viewModel.PositionUnlocked;
+        try { await _onApply(); }
+        catch (Exception ex) { Warn(Loc.F("ApplyFailed", ex.Message)); }
+    }
+
+    private void OnResetPositionClicked(object sender, RoutedEventArgs e)
+    {
+        _viewModel.Anchor = Core.Themes.HudAnchor.CenterLeft;
+        _viewModel.OffsetX = 40;
+        _viewModel.OffsetY = 0;
+
+        StatusText.Text = Loc.T("PositionResetToDefault");
+    }
+
+    // ================================================================ 主题
+
+    private void OnApplyThemeClicked(object sender, RoutedEventArgs e)
+    {
+        _viewModel.ApplySelectedTheme();
+        StatusText.Text = Loc.F("ThemeAppliedClickApply", _viewModel.WorkingTheme.Name);
+    }
+
+    private void OnDuplicateThemeClicked(object sender, RoutedEventArgs e)
+    {
+        var name = PromptForText(Loc.T("SaveAsTheme"), Loc.T("NewThemeName"), Loc.F("ThemeCopyName", _viewModel.WorkingTheme.Name));
+        if (name is null)
+        {
+            return;
+        }
+
+        var saved = _viewModel.SaveAsNewTheme(name);
+        StatusText.Text = Loc.F("SavedCustomTheme", saved.Name);
+    }
+
+    private void OnOverwriteThemeClicked(object sender, RoutedEventArgs e)
+    {
+        if (_viewModel.SelectedTheme?.IsBuiltIn != false)
+        {
+            Warn(Loc.T("ABuiltInThemeCannotBeOverwrittenUseSaveAs"));
+            return;
+        }
+
+        _viewModel.OverwriteSelectedTheme();
+        StatusText.Text = Loc.F("OverwroteTheme", _viewModel.SelectedTheme?.Name);
+    }
+
+    private void OnRenameThemeClicked(object sender, RoutedEventArgs e)
+    {
+        if (_viewModel.SelectedTheme is null)
+        {
+            return;
+        }
+
+        if (_viewModel.SelectedTheme.IsBuiltIn)
+        {
+            Warn(Loc.T("BuiltInThemesCannotBeRenamedUseSaveAsFirst"));
+            return;
+        }
+
+        var name = PromptForText(Loc.T("RenameTheme"), Loc.T("NewName"), _viewModel.SelectedTheme.Name);
+        if (name is null)
+        {
+            return;
+        }
+
+        if (!_viewModel.RenameSelectedTheme(name, out var error))
+        {
+            Warn(error ?? Loc.T("RenameFailed"));
+            return;
+        }
+
+        StatusText.Text = Loc.F("ThemeRenamedTo", name);
+    }
+
+    private void OnDeleteThemeClicked(object sender, RoutedEventArgs e)
+    {
+        if (_viewModel.SelectedTheme is null)
+        {
+            return;
+        }
+
+        var confirm = MessageBox.Show(
+            Loc.F("DeleteTheTheme", _viewModel.SelectedTheme.Name),
+            AppInfo.DisplayName,
+            MessageBoxButton.OKCancel,
+            MessageBoxImage.Warning);
+
+        if (confirm != MessageBoxResult.OK)
+        {
+            return;
+        }
+
+        if (!_viewModel.DeleteSelectedTheme(out var error))
+        {
+            Warn(error ?? Loc.T("DeleteFailed"));
+            return;
+        }
+
+        StatusText.Text = Loc.T("ThemeDeleted");
+    }
+
+    private void OnImportThemeClicked(object sender, RoutedEventArgs e)
+    {
+        var dialog = new OpenFileDialog
+        {
+            Title = Loc.T("ImportTheme"),
+            Filter = Loc.T("ThemeFileFilterAll"),
+            InitialDirectory = AppPaths.ThemesDirectory,
+        };
+
+        if (dialog.ShowDialog(this) != true)
+        {
+            return;
+        }
+
+        if (!_viewModel.ImportTheme(dialog.FileName, out var error))
+        {
+            Warn(error ?? Loc.T("ImportFailed"));
+            return;
+        }
+
+        StatusText.Text = Loc.T("ThemeImported");
+    }
+
+    private void OnExportThemeClicked(object sender, RoutedEventArgs e)
+    {
+        var dialog = new SaveFileDialog
+        {
+            Title = Loc.T("ExportTheme"),
+            Filter = Loc.T("ThemeFileFilter"),
+            FileName = $"{_viewModel.WorkingTheme.Name}.json",
+            InitialDirectory = AppPaths.ThemesDirectory,
+        };
+
+        if (dialog.ShowDialog(this) != true)
+        {
+            return;
+        }
+
+        if (!_viewModel.ExportTheme(dialog.FileName, out var error))
+        {
+            Warn(error ?? Loc.T("ExportFailed"));
+            return;
+        }
+
+        StatusText.Text = Loc.F("ThemeExportedTo", dialog.FileName);
+    }
+
+    // ================================================================ Test OCR
+
+    private async void OnTestOcrClicked(object sender, RoutedEventArgs e)
+    {
+        if (_testCapture is null)
+        {
+            return;
+        }
+
+        var button = sender as Button;
+        if (button is not null) button.IsEnabled = false;
+        try
+        {
+            for (var seconds = 3; seconds > 0; seconds--)
+            {
+                StatusText.Text = Loc.F("CaptureInSeconds", seconds);
+                await Task.Delay(1000);
+            }
+            _collectDiagnostics?.Invoke(1);
+            var outcome = await _testCapture();
+
+            TestRawImage.Source = null;
+            TestProcessedImage.Source = null;
+
+            var report = new System.Text.StringBuilder();
+            report.AppendLine(Loc.F("Cursor", outcome.Cursor.X, outcome.Cursor.Y));
+            report.AppendLine($"ROI       X={outcome.Roi.X} Y={outcome.Roi.Y} "
+                              + $"W={outcome.Roi.Width} H={outcome.Roi.Height}");
+            report.AppendLine();
+
+            if (outcome.Success && outcome.Coordinate is { } coordinate)
+            {
+                report.AppendLine("PASS");
+                report.AppendLine($"X {coordinate.X:0.00}");
+                report.AppendLine($"Y {coordinate.Y:0.00}");
+            }
+            else
+            {
+                report.AppendLine("FAIL");
+                report.AppendLine(Loc.F("ReportReason", outcome.Recognition.Error));
+            }
+
+            report.AppendLine();
+            report.AppendLine(Loc.F("ReportConfidence", outcome.Recognition.Confidence));
+            report.AppendLine($"Capture   {outcome.CaptureTime.TotalMilliseconds:0.0} ms");
+            report.AppendLine($"Total     {outcome.TotalTime.TotalMilliseconds:0.0} ms");
+
+            report.AppendLine();
+            report.AppendLine(Loc.T("Pipelines"));
+
+            foreach (var attempt in outcome.Recognition.Attempts)
+            {
+                report.AppendLine($"  {attempt.Engine}/{attempt.Pipeline}  "
+                                  + $"{(attempt.Success ? "OK" : attempt.Error)}");
+                report.AppendLine(Loc.F("Raw", Describe(attempt.RawText)));
+                report.AppendLine(Loc.F("Repaired", Describe(attempt.RepairedText)));
+                report.AppendLine(Loc.F("ReportAttempt", attempt.Confidence,
+                    attempt.PreprocessTime.TotalMilliseconds, attempt.OcrTime.TotalMilliseconds));
+            }
+
+            TestResultText.Text = report.ToString();
+            StatusText.Text = outcome.Success
+                ? Loc.F("TestPassedXY", outcome.Coordinate!.Value.X, outcome.Coordinate.Value.Y)
+                : Loc.F("TestFailed", outcome.Recognition.Error);
+
+            await LoadTestImagesAsync(outcome);
+        }
+        catch (Exception ex)
+        {
+            StatusText.Text = Loc.F("TestFailed", ex.Message);
+        }
+        finally
+        {
+            if (button is not null) button.IsEnabled = true;
+        }
+    }
+
+    /// <summary>
+    /// 把这次采集的中间图显示出来。
+    /// </summary>
+    /// <remarks>
+    /// 目前只回读 Debug 目录里刚写下的图——那需要用户额外勾选「保存原始 ROI」。
+    /// 更直接的做法是让采集链路把 Mat 回传给 UI，但那条路径会跨越线程边界，
+    /// 为此把 Mat 的生存期管理复杂化不划算，所以这里退一步：
+    /// 有转储就显示，没有就说清楚怎么打开。
+    /// </remarks>
+    private Task LoadTestImagesAsync(CaptureOutcome outcome)
+    {
+        TestRawLabel.Text = outcome.RawImagePath is null ? Loc.T("NoRawImageWasSavedForThisRunEnableDiagnosticColl") : Loc.T("RawROIOfThisRun");
+        TestRawImage.Source = outcome.RawImagePath is { } raw ? LoadBitmap(raw) : null;
+        TestProcessedImage.Source = outcome.ProcessedImagePath is { } processed ? LoadBitmap(processed) : null;
+        return Task.CompletedTask;
+    }
+
+    private static BitmapImage? LoadBitmap(string path)
+    {
+        try
+        {
+            var image = new BitmapImage();
+            image.BeginInit();
+            image.CacheOption = BitmapCacheOption.OnLoad;
+            image.UriSource = new Uri(path);
+            image.EndInit();
+            image.Freeze();
+            return image;
+        }
+        catch (Exception ex) when (ex is IOException or NotSupportedException or UriFormatException)
+        {
+            return null;
+        }
+    }
+
+    private static string Describe(string text)
+        => string.IsNullOrWhiteSpace(text)
+            ? Loc.T("Empty2")
+            : text.Replace("\r", "").Replace("\n", " | ").Trim();
+
+    private void OnCollectDiagnosticsClicked(object sender, RoutedEventArgs e)
+    {
+        _collectDiagnostics?.Invoke(10);
+        StatusText.Text = Loc.T("EnabledTheNext10CapturesWillSaveFullDiagnosticsG");
+    }
+
+    private void OnOpenDebugFolderClicked(object sender, RoutedEventArgs e)
+        => OpenFolder(AppPaths.DebugDirectory);
+
+    private void OnOpenSamplesFolderClicked(object sender, RoutedEventArgs e)
+        => OpenFolder(AppPaths.SamplesDirectory);
+
+    private void OpenFolder(string path)
+    {
+        try
+        {
+            AppPaths.EnsureDirectories();
+            Process.Start(new ProcessStartInfo
+            {
+                FileName = path,
+                UseShellExecute = true,
+            });
+        }
+        catch (Exception ex)
+        {
+            Warn(Loc.F("FailedToOpenTheFolder", ex.Message));
+        }
+    }
+
+    // ================================================================ 应用 / 取消
+
+    private void OnLivePreviewToggled(object sender, RoutedEventArgs e)
+    {
+        // 这个事件会在 InitializeComponent() 期间就被触发一次：
+        // XAML 里「实时预览」写的是 IsChecked="True"，解析到这一行时 Checked 立刻引发，
+        // 而此刻 _viewModel 与 PreviewRenderer 都还没构造出来。
+        // 少了这个守卫，构造函数会抛 NullReferenceException，
+        // 而调用方（App.OnStartup → ShowSettings）还没来得及显示任何窗口，程序就没了。
+        if (!IsLoaded || _viewModel is null)
+        {
+            return;
+        }
+
+        if (LivePreviewCheck.IsChecked == true)
+        {
+            RefreshPreview();
+        }
+    }
+
+    private async void OnApplyClicked(object sender, RoutedEventArgs e) => await ApplyAsync();
+
+    private async Task<bool> ApplyAsync()
+    {
+        try
+        {
+            var ruler = RulerPanel.BuildSettings();
+            _viewModel.SaveTo(_settings);
+            _settings.Ruler = ruler;
+            await _onApply();
+            StatusText.Text = Loc.F("AppliedAt", DateTime.Now);
+            return true;
+        }
+        catch (Exception ex)
+        {
+            Warn(Loc.F("ApplyFailed", ex.Message));
+            return false;
+        }
+    }
+
+    private async void OnOkClicked(object sender, RoutedEventArgs e)
+    {
+        if (await ApplyAsync()) Close();
+    }
+
+    private void OnCancelClicked(object sender, RoutedEventArgs e) => Close();
+
+    protected override void OnClosing(System.ComponentModel.CancelEventArgs e)
+    {
+        // TDD §36：关掉设置窗口只是收起来，程序继续在托盘里跑。
+        e.Cancel = true;
+        Hide();
+    }
+
+    // ================================================================ 小工具
+
+    private void Warn(string message)
+        => MessageBox.Show(message, AppInfo.DisplayName, MessageBoxButton.OK, MessageBoxImage.Warning);
+
+    /// <summary>一个极简的文本输入框。WPF 没有内建的 InputBox，为它引一个库不值。</summary>
+    private string? PromptForText(string title, string label, string defaultValue)
+    {
+        var window = new Window
+        {
+            Title = title,
+            Width = 380,
+            Height = 170,
+            Owner = this,
+            WindowStartupLocation = WindowStartupLocation.CenterOwner,
+            ResizeMode = ResizeMode.NoResize,
+            Background = (System.Windows.Media.Brush)FindResource("SurfaceBrush"),
+        };
+
+        var panel = new StackPanel { Margin = new Thickness(16) };
+        panel.Children.Add(new TextBlock
+        {
+            Text = label,
+            Margin = new Thickness(0, 0, 0, 8),
+            Foreground = (System.Windows.Media.Brush)FindResource("TextBrush"),
+        });
+
+        var input = new TextBox { Text = defaultValue, Padding = new Thickness(4) };
+        panel.Children.Add(input);
+
+        var buttons = new StackPanel
+        {
+            Orientation = Orientation.Horizontal,
+            HorizontalAlignment = HorizontalAlignment.Right,
+            Margin = new Thickness(0, 16, 0, 0),
+        };
+
+        string? result = null;
+
+        var ok = new Button { Content = Loc.T("TextOK"), Width = 76, IsDefault = true };
+        ok.Click += (_, _) =>
+        {
+            result = input.Text;
+            window.Close();
+        };
+
+        var cancel = new Button { Content = Loc.T("Cancel"), Width = 76, IsCancel = true, Margin = new Thickness(8, 0, 0, 0) };
+        cancel.Click += (_, _) => window.Close();
+
+        buttons.Children.Add(ok);
+        buttons.Children.Add(cancel);
+        panel.Children.Add(buttons);
+
+        window.Content = panel;
+        input.SelectAll();
+        input.Focus();
+
+        return window.ShowDialog() == true ? result : null;
+    }
+}

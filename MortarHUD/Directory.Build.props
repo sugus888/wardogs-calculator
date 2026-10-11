@@ -1,0 +1,30 @@
+<Project>
+
+  <!-- 全局编译设置：所有子项目共享。 -->
+  <PropertyGroup>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+    <InvariantGlobalization>false</InvariantGlobalization>
+    <NeutralLanguage>zh-Hans</NeutralLanguage>
+    <!--
+      只钉 PlatformTarget，不声明 Platforms。
+      声明 Platforms 会让「直接构建项目」与「构建解决方案」产出到不同目录
+      （bin/Debug 与 bin/x64/Debug），跑起来很容易拿到过期的二进制。
+    -->
+    <PlatformTarget>x64</PlatformTarget>
+    <!--
+      ซู-ปืนครก：基于 MortarHUD 1.1.0 (Cec1c, Apache-2.0) 的分支。
+      版本号只改这里一处：界面显示为 "V主.次"（AppInfo.Version），
+      每次发布 +0.1（V0.1 → V0.2 → V0.3 …）。
+    -->
+    <Product>ซู-ปืนครก</Product>
+    <Company>ซู-ปืนครก</Company>
+    <Version>0.1.0</Version>
+    <AssemblyVersion>0.1.0.0</AssemblyVersion>
+    <FileVersion>0.1.0.0</FileVersion>
+  </PropertyGroup>
+
+</Project>

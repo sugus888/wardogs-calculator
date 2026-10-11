@@ -1,0 +1,26 @@
+ซู-ปืนครก (SuMortar)
+Copyright 2026 sugus888
+
+This product is a modified version of MortarHUD.
+
+MortarHUD
+Copyright 2026 Cec1c
+https://github.com/Cec1c/MortarHUD
+Licensed under the Apache License, Version 2.0 (see LICENSE).
+
+Changes made in ซู-ปืนครก:
+- Firing-table elevation (MIL) for L81 and SPH-2, using data/weapons.json from
+  the WARDOGS Artillery Calculator project (MIT License,
+  https://github.com/sugus888/wardogs-calculator)
+- Weapon cycle hotkey and MIL lines on the HUD
+- Thai user interface (default) alongside Chinese and English
+- Renamed program, separate settings folder (%AppData%\SuMortar) and version scheme
+
+Bundled third-party components keep their own licenses: Tesseract OCR and its
+English traineddata (Apache-2.0), OpenCvSharp4 / OpenCV (Apache-2.0),
+and the .NET runtime (MIT).
+
+WARDOGS is a trademark of its respective owners. This tool is not affiliated
+with or endorsed by the WARDOGS developers. It only reads pixels from the
+screen; using it is at your own risk, including any risk under the game's
+terms of service.
