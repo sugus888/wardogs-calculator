@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="Content-Security-Policy"
+          content="default-src 'none'; script-src 'self'; style-src 'self'">
+    <title>Overlay toolbar</title>
+    <link rel="stylesheet" href="toolbar.css">
+</head>
+<body>
+    <header class="bar">
+        <span class="title">WARDOGS Overlay</span>
+
+        <button type="button" data-action="back" title="Back">&#8592;</button>
+        <button type="button" data-action="reload" title="Reload (F5)">&#8635;</button>
+
+        <select id="mode" title="Layout">
+            <option value="mobile">Compact</option>
+            <option value="desktop">Desktop</option>
+        </select>
+
+        <label class="opacity" title="Opacity (Ctrl+Shift+Up / Down)">
+            <span>Opacity</span>
+            <input id="opacity" type="range" min="20" max="100" step="5">
+            <output id="opacity-value"></output>
+        </label>
+
+        <button type="button" id="click-through" data-action="toggle-click-through"
+                title="Click-through (Ctrl+Shift+C)">Click-through</button>
+
+        <span class="spacer"></span>
+
+        <button type="button" data-action="hide" title="Hide (Ctrl+Shift+O)">&#8211;</button>
+        <button type="button" data-action="quit" class="danger" title="Quit">&#10005;</button>
+    </header>
+
+    <script src="toolbar.js"></script>
+</body>
+</html>

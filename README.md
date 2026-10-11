@@ -60,6 +60,7 @@ Detailed documentation is split into focused files to keep this README concise.
 - [Analytics](docs/analytics.md) — GoatCounter setup, bounded usage events, local testing, and privacy
 - [Message of the Day](docs/motd.md) — MOTD configuration, localization, and behavior
 - [Collaborative lobbies](docs/lobbies.md) — live team map behaviour, Cloudflare deployment, limits, privacy, and recovery
+- [Map overlay](overlay/README.md) — optional always-on-top desktop window that shows the official site over the game
 - [Security hardening](docs/security.md) — public-source threat model, Cloudflare headers, secrets, CI, and residual risks
 - [CDN & hosted assets](docs/cdn.md) — permitted use of the project-funded CDN and requirements for forks and self-hosted deployments
 - [Asset delivery](docs/assets-gateway.md) — CDN usage boundaries, contributor checks, privacy, and security reporting

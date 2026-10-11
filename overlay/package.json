@@ -1,0 +1,38 @@
+{
+  "name": "wardogs-map-overlay",
+  "productName": "WARDOGS Map Overlay",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Always-on-top desktop overlay window for the official WARDOGS Artillery Calculator map.",
+  "main": "src/main.js",
+  "license": "MIT",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "start": "electron .",
+    "start:local": "electron . --url=http://localhost:8000/",
+    "test": "node --test src/*.test.js",
+    "dist:win": "electron-builder --win portable"
+  },
+  "devDependencies": {
+    "electron": "44.3.0",
+    "electron-builder": "26.15.3"
+  },
+  "build": {
+    "appId": "com.wardogs.map-overlay",
+    "productName": "WARDOGS Map Overlay",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "src/**/*",
+      "!src/**/*.test.js",
+      "build/icon.png",
+      "package.json"
+    ],
+    "win": {
+      "target": "portable"
+    }
+  }
+}

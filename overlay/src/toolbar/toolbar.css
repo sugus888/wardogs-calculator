@@ -1,0 +1,110 @@
+:root {
+    --bg: #14161a;
+    --fg: #e6e2d8;
+    --muted: #8d8a83;
+    --accent: #d7a452;
+    --hover: #262a31;
+    --danger: #c0473d;
+}
+
+* {
+    box-sizing: border-box;
+}
+
+html,
+body {
+    margin: 0;
+    height: 100%;
+    overflow: hidden;
+    background: var(--bg);
+    color: var(--fg);
+    font: 12px/1 "Segoe UI", system-ui, sans-serif;
+    user-select: none;
+}
+
+.bar {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    height: 100%;
+    padding: 0 4px 0 10px;
+    /* The whole bar drags the frameless window ... */
+    -webkit-app-region: drag;
+}
+
+/* ... except the controls on it. */
+button,
+select,
+input,
+label {
+    -webkit-app-region: no-drag;
+}
+
+.title {
+    color: var(--accent);
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    white-space: nowrap;
+}
+
+.spacer {
+    flex: 1;
+}
+
+button,
+select {
+    height: 22px;
+    padding: 0 8px;
+    border: 1px solid transparent;
+    border-radius: 4px;
+    background: transparent;
+    color: var(--fg);
+    font: inherit;
+    white-space: nowrap;
+    cursor: pointer;
+}
+
+select {
+    border-color: var(--hover);
+    background: var(--bg);
+}
+
+button:hover,
+select:hover {
+    background: var(--hover);
+}
+
+button.active {
+    border-color: var(--accent);
+    color: var(--accent);
+}
+
+button.danger:hover {
+    background: var(--danger);
+}
+
+.opacity {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    color: var(--muted);
+}
+
+.opacity input {
+    width: 80px;
+    accent-color: var(--accent);
+}
+
+.opacity output {
+    width: 30px;
+    color: var(--fg);
+    text-align: right;
+}
+
+/* Narrow overlays: drop labels before controls. */
+@media (max-width: 560px) {
+    .title,
+    .opacity span {
+        display: none;
+    }
+}
