@@ -65,6 +65,8 @@
                       <RowDefinition Height="Auto"/>
                       <RowDefinition Height="Auto"/>
                       <RowDefinition Height="Auto"/>
+                      <RowDefinition Height="Auto"/>
+                      <RowDefinition Height="Auto"/>
                     </Grid.RowDefinitions>
                     <Label Grid.Row="0" Grid.Column="0" Content="{loc:T RecordGun}"/>
                     <TextBox Grid.Row="0" Grid.Column="1" x:Name="GunHotkeyBox" IsReadOnly="True" Cursor="Hand" PreviewKeyDown="OnHotkeyBoxKeyDown" PreviewMouseDown="OnHotkeyBoxMouseDown" GotFocus="OnHotkeyBoxGotFocus" Text="{Binding CaptureGun, Mode=OneWay, Converter={StaticResource HotkeyDisplay}}" AutomationProperties.Name="{loc:T RecordGun}"/>
@@ -76,18 +78,22 @@
                     <TextBox Grid.Row="3" Grid.Column="1" x:Name="SettingsHotkeyBox" IsReadOnly="True" Cursor="Hand" PreviewKeyDown="OnHotkeyBoxKeyDown" PreviewMouseDown="OnHotkeyBoxMouseDown" GotFocus="OnHotkeyBoxGotFocus" Text="{Binding OpenSettingsHotkey, Mode=OneWay, Converter={StaticResource HotkeyDisplay}}" AutomationProperties.Name="{loc:T OpenSettings}"/>
                     <Label Grid.Row="4" Grid.Column="0" Content="{loc:T CycleWeapon}"/>
                     <TextBox Grid.Row="4" Grid.Column="1" x:Name="WeaponHotkeyBox" IsReadOnly="True" Cursor="Hand" PreviewKeyDown="OnHotkeyBoxKeyDown" PreviewMouseDown="OnHotkeyBoxMouseDown" GotFocus="OnHotkeyBoxGotFocus" Text="{Binding CycleWeaponHotkey, Mode=OneWay, Converter={StaticResource HotkeyDisplay}}" AutomationProperties.Name="{loc:T CycleWeapon}"/>
-                    <Button Grid.Row="5" Grid.Column="1" Content="{loc:T RestoreDefaults}" Click="OnRestoreHotkeysClicked" HorizontalAlignment="Left" Margin="0,8,0,16"/>
-                    <StackPanel Grid.Row="7" Grid.Column="0" Grid.ColumnSpan="3" Margin="0,0,0,8">
+                    <Label Grid.Row="5" Grid.Column="0" Content="{loc:T ToggleCrosshair}"/>
+                    <TextBox Grid.Row="5" Grid.Column="1" x:Name="CrosshairHotkeyBox" IsReadOnly="True" Cursor="Hand" PreviewKeyDown="OnHotkeyBoxKeyDown" PreviewMouseDown="OnHotkeyBoxMouseDown" GotFocus="OnHotkeyBoxGotFocus" Text="{Binding ToggleCrosshairHotkey, Mode=OneWay, Converter={StaticResource HotkeyDisplay}}" AutomationProperties.Name="{loc:T ToggleCrosshair}"/>
+                    <Label Grid.Row="6" Grid.Column="0" Content="{loc:T OpenQuickMenu}"/>
+                    <TextBox Grid.Row="6" Grid.Column="1" x:Name="QuickMenuHotkeyBox" IsReadOnly="True" Cursor="Hand" PreviewKeyDown="OnHotkeyBoxKeyDown" PreviewMouseDown="OnHotkeyBoxMouseDown" GotFocus="OnHotkeyBoxGotFocus" Text="{Binding QuickMenuHotkey, Mode=OneWay, Converter={StaticResource HotkeyDisplay}}" AutomationProperties.Name="{loc:T OpenQuickMenu}"/>
+                    <Button Grid.Row="7" Grid.Column="1" Content="{loc:T RestoreDefaults}" Click="OnRestoreHotkeysClicked" HorizontalAlignment="Left" Margin="0,8,0,16"/>
+                    <StackPanel Grid.Row="9" Grid.Column="0" Grid.ColumnSpan="3" Margin="0,0,0,8">
                       <CheckBox Content="{loc:T AutoCalibrateTheGunWhenTheMapKeyIsPressed}" IsChecked="{Binding AutoCalibrateEnabled}"/>
                     </StackPanel>
-                    <TextBlock Grid.Row="6" Grid.Column="0" Grid.ColumnSpan="3" Text="{loc:T MapKeyAutoCalibration}" Style="{StaticResource SectionHeader}"/>
-                    <Label Grid.Row="8" Grid.Column="0" Content="{loc:T MapKey}"/>
-                    <TextBox Grid.Row="8" Grid.Column="1" x:Name="MapKeyBox" IsReadOnly="True" Cursor="Hand" PreviewKeyDown="OnHotkeyBoxKeyDown" GotFocus="OnHotkeyBoxGotFocus" IsEnabled="{Binding AutoCalibrateEnabled}" Text="{Binding AutoCalibrateKey, Mode=OneWay, Converter={StaticResource HotkeyDisplay}}" AutomationProperties.Name="{loc:T MapKey}"/>
-                    <Label Grid.Row="9" Grid.Column="0" Content="{loc:T WaitAfterOpeningTheMap}"/>
-                    <TextBox Grid.Row="9" Grid.Column="1" IsEnabled="{Binding AutoCalibrateEnabled}" Text="{Binding AutoCalibrateDelayMs}" AutomationProperties.Name="{loc:T WaitAfterOpeningTheMap}"/>
-                    <TextBlock Grid.Row="9" Grid.Column="2" Text="{loc:T TextMs}" VerticalAlignment="Center" Margin="6,0,0,0"/>
+                    <TextBlock Grid.Row="8" Grid.Column="0" Grid.ColumnSpan="3" Text="{loc:T MapKeyAutoCalibration}" Style="{StaticResource SectionHeader}"/>
+                    <Label Grid.Row="10" Grid.Column="0" Content="{loc:T MapKey}"/>
+                    <TextBox Grid.Row="10" Grid.Column="1" x:Name="MapKeyBox" IsReadOnly="True" Cursor="Hand" PreviewKeyDown="OnHotkeyBoxKeyDown" GotFocus="OnHotkeyBoxGotFocus" IsEnabled="{Binding AutoCalibrateEnabled}" Text="{Binding AutoCalibrateKey, Mode=OneWay, Converter={StaticResource HotkeyDisplay}}" AutomationProperties.Name="{loc:T MapKey}"/>
+                    <Label Grid.Row="11" Grid.Column="0" Content="{loc:T WaitAfterOpeningTheMap}"/>
+                    <TextBox Grid.Row="11" Grid.Column="1" IsEnabled="{Binding AutoCalibrateEnabled}" Text="{Binding AutoCalibrateDelayMs}" AutomationProperties.Name="{loc:T WaitAfterOpeningTheMap}"/>
+                    <TextBlock Grid.Row="11" Grid.Column="2" Text="{loc:T TextMs}" VerticalAlignment="Center" Margin="6,0,0,0"/>
                     <!-- 这一行是给布局留位置的，内容由上面的 StackPanel 提供 -->
-                    <TextBlock Grid.Row="7" Grid.Column="1" Visibility="Collapsed"/>
+                    <TextBlock Grid.Row="9" Grid.Column="1" Visibility="Collapsed"/>
                   </Grid>
                   <TextBlock Text="{loc:T ClickAHotkeyBoxThenPressTheNewKeyAfterPressingMK}" Style="{StaticResource Hint}"/>
                 </StackPanel>
@@ -110,18 +116,18 @@
                   <CheckBox Content="{loc:T StartWithWindows}" IsChecked="{Binding StartWithWindows}"/>
                   <TextBlock Text="{loc:T ClosingTheWindowKeepsMortarHUDRunningInTheSystem}" Style="{StaticResource Hint}" Margin="0,8,0,0"/>
 
-                  <TextBlock Text="{loc:T Language}" Style="{StaticResource SectionHeader}" Margin="0,16,0,0"/>
+                  <!-- ซู-ปืนครก：暂时只开放泰文，语言选择先隐藏。 -->
+                  <TextBlock Text="{loc:T Language}" Style="{StaticResource SectionHeader}" Margin="0,16,0,0" Visibility="Collapsed"/>
                   <!--
                     语言名不翻译：中文就叫「中文」，英文就叫 English——
                     把语言名译成当前语言会让用户找不到自己想切的那一项。
                   -->
                   <ComboBox SelectedValue="{Binding Language}" SelectedValuePath="Tag"
-                            Width="200" HorizontalAlignment="Left">
+                            Width="200" HorizontalAlignment="Left" Visibility="Collapsed">
                     <ComboBoxItem Content="ไทย" Tag="th"/>
-                    <ComboBoxItem Content="English" Tag="en"/>
-                    <ComboBoxItem Content="中文" Tag="zh-CN"/>
+
                   </ComboBox>
-                  <TextBlock Text="{loc:T LanguageHint}" Style="{StaticResource Hint}" Margin="0,8,0,0"/>
+                  <TextBlock Text="{loc:T LanguageHint}" Style="{StaticResource Hint}" Margin="0,8,0,0" Visibility="Collapsed"/>
                   <Expander Header="{loc:T CoordinateConversionAndAxes}">
                     <StackPanel>
                       <TextBlock Text="{loc:T CoordinateConversion}" Style="{StaticResource SectionHeader}"/>

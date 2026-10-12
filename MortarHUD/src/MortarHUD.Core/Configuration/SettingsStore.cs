@@ -182,6 +182,10 @@ public sealed class SettingsStore
 
         // ซู-ปืนครก 新增字段：显式 null 时补回默认值。
         settings.Hotkeys.CycleWeapon ??= new HotkeySettings().CycleWeapon;
+        settings.Hotkeys.ToggleCrosshair ??= new HotkeySettings().ToggleCrosshair;
+        settings.Hotkeys.QuickMenu ??= new HotkeySettings().QuickMenu;
+        settings.Crosshair ??= new CrosshairSettings();
+        settings.Crosshair.Clamp();
         settings.General.WeaponId ??= new GeneralSettings().WeaponId;
 
         return settings;

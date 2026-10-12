@@ -21,6 +21,12 @@ public sealed class HotkeySettings
     /// <summary>循环切换武器（L81 ↔ SPH-2）。</summary>
     public string CycleWeapon { get; set; } = "F7";
 
+    /// <summary>เปิด/ปิดเป้ากลางจอ。</summary>
+    public string ToggleCrosshair { get; set; } = "F11";
+
+    /// <summary>เมนูด่วนที่ลอยทับเกม（调武器、HUD、准星，不用切出游戏）。</summary>
+    public string QuickMenu { get; set; } = "Insert";
+
     // ---- 按地图键自动校准炮位 ----
     //
     // 游戏里按 M 打开地图时，鼠标会复位到地图中心——也就是自己的位置。
@@ -70,5 +76,7 @@ public sealed class HotkeySettings
         ToggleHud = ToggleHud,
         OpenSettings = OpenSettings,
         CycleWeapon = CycleWeapon,
+        ToggleCrosshair = ToggleCrosshair,
+        QuickMenu = QuickMenu,
     };
 }

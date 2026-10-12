@@ -38,6 +38,8 @@ public sealed class SettingsViewModel : ObservableObject
     private string _toggleHud = "F8";
     private string _openSettings = "F9";
     private string _cycleWeapon = "F7";
+    private string _toggleCrosshair = "F11";
+    private string _quickMenu = "Insert";
     private bool _autoCalibrateEnabled = true;
     private string _autoCalibrateKey = "M";
     private int _autoCalibrateDelayMs = 350;
@@ -173,6 +175,8 @@ public sealed class SettingsViewModel : ObservableObject
         _toggleHud = settings.Hotkeys.ToggleHud;
         _openSettings = settings.Hotkeys.OpenSettings;
         _cycleWeapon = settings.Hotkeys.CycleWeapon;
+        _toggleCrosshair = settings.Hotkeys.ToggleCrosshair;
+        _quickMenu = settings.Hotkeys.QuickMenu;
         _autoCalibrateEnabled = settings.Hotkeys.AutoCalibrateEnabled;
         _autoCalibrateKey = settings.Hotkeys.AutoCalibrateKey;
         _autoCalibrateDelayMs = settings.Hotkeys.AutoCalibrateDelayMs;
@@ -244,6 +248,8 @@ public sealed class SettingsViewModel : ObservableObject
         settings.Hotkeys.ToggleHud = _toggleHud;
         settings.Hotkeys.OpenSettings = _openSettings;
         settings.Hotkeys.CycleWeapon = _cycleWeapon;
+        settings.Hotkeys.ToggleCrosshair = _toggleCrosshair;
+        settings.Hotkeys.QuickMenu = _quickMenu;
         settings.Hotkeys.AutoCalibrateEnabled = _autoCalibrateEnabled;
         settings.Hotkeys.AutoCalibrateKey = _autoCalibrateKey;
         settings.Hotkeys.AutoCalibrateDelayMs = _autoCalibrateDelayMs;
@@ -411,6 +417,8 @@ public sealed class SettingsViewModel : ObservableObject
     public string ToggleHudHotkey { get => _toggleHud; set { if (Set(ref _toggleHud, value)) NotifyChanged(); } }
     public string OpenSettingsHotkey { get => _openSettings; set { if (Set(ref _openSettings, value)) NotifyChanged(); } }
     public string CycleWeaponHotkey { get => _cycleWeapon; set { if (Set(ref _cycleWeapon, value)) NotifyChanged(); } }
+    public string ToggleCrosshairHotkey { get => _toggleCrosshair; set { if (Set(ref _toggleCrosshair, value)) NotifyChanged(); } }
+    public string QuickMenuHotkey { get => _quickMenu; set { if (Set(ref _quickMenu, value)) NotifyChanged(); } }
 
     public bool AutoCalibrateEnabled
     {

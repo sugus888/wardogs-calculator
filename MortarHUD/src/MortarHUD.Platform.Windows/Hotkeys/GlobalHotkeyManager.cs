@@ -299,6 +299,8 @@ public sealed class GlobalHotkeyManager : IGlobalHotkeyService
         HotkeyAction.AutoCalibrateGun => Loc.T("AutoCalibrateTheGunFromTheMapKey"),
         HotkeyAction.ToggleRuler => Loc.T("ToggleRuler"),
         HotkeyAction.CycleWeapon => Loc.T("CycleWeapon"),
+        HotkeyAction.ToggleCrosshair => Loc.T("ToggleCrosshair"),
+        HotkeyAction.QuickMenu => Loc.T("OpenQuickMenu"),
         _ => action.ToString(),
     };
 

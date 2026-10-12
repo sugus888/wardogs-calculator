@@ -187,6 +187,14 @@ public partial class SettingsWindow : Window
         {
             _viewModel.CycleWeaponHotkey = text;
         }
+        else if (ReferenceEquals(box, CrosshairHotkeyBox))
+        {
+            _viewModel.ToggleCrosshairHotkey = text;
+        }
+        else if (ReferenceEquals(box, QuickMenuHotkeyBox))
+        {
+            _viewModel.QuickMenuHotkey = text;
+        }
         else if (ReferenceEquals(box, MapKeyBox))
         {
             _viewModel.AutoCalibrateKey = text;
@@ -281,6 +289,8 @@ public partial class SettingsWindow : Window
         _viewModel.ToggleHudHotkey = defaults.ToggleHud;
         _viewModel.OpenSettingsHotkey = defaults.OpenSettings;
         _viewModel.CycleWeaponHotkey = defaults.CycleWeapon;
+        _viewModel.ToggleCrosshairHotkey = defaults.ToggleCrosshair;
+        _viewModel.QuickMenuHotkey = defaults.QuickMenu;
         _viewModel.AutoCalibrateEnabled = defaults.AutoCalibrateEnabled;
         _viewModel.AutoCalibrateKey = defaults.AutoCalibrateKey;
         _viewModel.AutoCalibrateDelayMs = defaults.AutoCalibrateDelayMs;

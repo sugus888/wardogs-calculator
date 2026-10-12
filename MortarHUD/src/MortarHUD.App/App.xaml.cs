@@ -55,6 +55,8 @@ public partial class App : Application
     private MortarSession? _session;
     private HudController? _hud;
     private SightRulerController? _ruler;
+    private CrosshairController? _crosshair;
+    private QuickMenuWindow? _quickMenu;
     private MortarCaptureService? _captureService;
     private DebugArtifactWriter? _debugWriter;
     private CaptureDiagnostics? _debugObserver;
@@ -90,7 +92,9 @@ public partial class App : Application
         // - 「已经在运行了」那条提示、以及自检/截图两种诊断模式同样会构造窗口。
         _settingsStore = new SettingsStore();
         _settings = _settingsStore.Load();
-        Loc.Language = _settings.General.Language;
+        // ซู-ปืนครก：暂时只开放泰文界面（中文 / 英文文案表保留，以后再打开）。
+        _settings.General.Language = Loc.Thai;
+        Loc.Language = Loc.Thai;
 
         // ---- 诊断模式 ----
         //
@@ -198,6 +202,13 @@ public partial class App : Application
         Step(Loc.T("CreateTheHUDOverlayWindow"), () => _overlay = new OverlayWindow());
         Step(Loc.T("CreateTheDebugPanelWindow"), () => _debugOverlay = new DebugOverlayWindow());
         Step("构造炮口标尺窗口", () => _ = new SightRulerWindow());
+        Step("构造准星窗口", () => _ = new CrosshairWindow());
+        Step("构造快捷菜单窗口", () =>
+        {
+            var menu = new QuickMenuWindow(_settings, () => { }, _ => { }, () => { }, () => { }, () => "Insert");
+            menu.LoadFromSettings();
+            menu.ForceClose();
+        });
         Step(Loc.T("CreateTheHUDController"), () => _hud = new HudController(_session!, _overlay!, () => _settings.Hud));
 
         Step(Loc.T("RunOneEndToEndRecognition"), () =>
@@ -487,6 +498,15 @@ public partial class App : Application
 
         _hud = new HudController(_session!, _overlay, () => _settings.Hud);
         _ruler = new SightRulerController(() => _settings, () => _session);
+        _crosshair = new CrosshairController(() => _settings, () => _quickMenu?.IsOpen == true);
+        _quickMenu = new QuickMenuWindow(
+            _settings,
+            ApplyQuickMenuChange,
+            SelectWeapon,
+            ClearTarget,
+            ShowSettings,
+            () => DescribeHotkey(_settings.Hotkeys.QuickMenu));
+        _quickMenu.MenuClosed += (_, _) => PersistSettings();
 
         _tray = new TrayIcon();
         _tray.ShowSettingsRequested += (_, _) => ShowSettings();
@@ -598,6 +618,8 @@ public partial class App : Application
         yield return (HotkeyAction.ToggleHud, _settings.Hotkeys.ToggleHud);
         yield return (HotkeyAction.OpenSettings, _settings.Hotkeys.OpenSettings);
         yield return (HotkeyAction.CycleWeapon, _settings.Hotkeys.CycleWeapon);
+        yield return (HotkeyAction.ToggleCrosshair, _settings.Hotkeys.ToggleCrosshair);
+        yield return (HotkeyAction.QuickMenu, _settings.Hotkeys.QuickMenu);
         if (_settings.Ruler.Enabled) yield return (HotkeyAction.ToggleRuler, _settings.Ruler.ToggleHotkey);
     }
 
@@ -628,6 +650,13 @@ public partial class App : Application
                 case HotkeyAction.CycleWeapon:
                     CycleWeapon();
                     break;
+                case HotkeyAction.ToggleCrosshair:
+                    _crosshair?.Follow(CaptureContext.Foreground);
+                    ToggleCrosshair();
+                    break;
+                case HotkeyAction.QuickMenu:
+                    ToggleQuickMenu();
+                    break;
                 case HotkeyAction.ToggleRuler:
                     _operations.Cancel();
                     _ruler?.Follow(CaptureContext.Foreground);
@@ -646,6 +675,7 @@ public partial class App : Application
         var foreground = CaptureContext.Foreground;
         if (!CaptureContext.IsExternal(foreground)) return;
         _ruler?.Follow(foreground);
+        _crosshair?.Follow(foreground);
         var clock = System.Diagnostics.Stopwatch.StartNew();
         await _operations.RunAsync(async token =>
         {
@@ -737,6 +767,7 @@ public partial class App : Application
     {
         var foreground = CaptureContext.Foreground;
         _ruler?.Follow(foreground);
+        _crosshair?.Follow(foreground);
         CaptureContext.TryGetCursor(out var initialCursor);
         await _operations.RunAsync(async token =>
         {
@@ -935,6 +966,8 @@ public partial class App : Application
             _settingsWindow.Closed += (_, _) => _settingsWindow = null;
         }
 
+        // ซู-ปืนครก：置顶，否则在无边框全屏游戏里按 F9 窗口会被压在游戏后面，只能把游戏最小化。
+        _settingsWindow.Topmost = true;
         _settingsWindow.Show();
 
         // 设置窗口必须能抢到焦点，否则用户没法在里面打字。
@@ -943,7 +976,11 @@ public partial class App : Application
             _settingsWindow.WindowState = WindowState.Normal;
         }
 
-        _settingsWindow.Activate();
+        var settingsHandle = new System.Windows.Interop.WindowInteropHelper(_settingsWindow).Handle;
+        if (!ForegroundWindow.Activate(settingsHandle))
+        {
+            _settingsWindow.Activate();
+        }
     }
 
     /// <summary>
@@ -957,9 +994,67 @@ public partial class App : Application
         _settings.General.WeaponId = next.Id;
         _session.SelectWeapon(next, announce: true);
         _hud.NotifyStatusChanged();
+        _quickMenu?.SelectWeaponButton(next.Id);
 
         _logger?.LogInformation("切换武器：{Weapon}", next.Id);
         PersistSettings();
+    }
+
+    /// <summary>เมนูด่วนเลือกอาวุธ：和 F7 一样只换射表，炮位 / 目标不变。</summary>
+    private void SelectWeapon(string id)
+    {
+        if (_session is null || _hud is null) return;
+
+        var weapon = WeaponCatalog.Find(id);
+        _settings.General.WeaponId = weapon.Id;
+        _session.SelectWeapon(weapon, announce: true);
+        _hud.NotifyStatusChanged();
+    }
+
+    private void ClearTarget()
+    {
+        if (_session is null || _hud is null) return;
+
+        _session.ClearTarget();
+        _hud.Refresh();
+    }
+
+    private void ToggleCrosshair()
+    {
+        _settings.Crosshair.Enabled = !_settings.Crosshair.Enabled;
+        _crosshair?.Refresh();
+        _quickMenu?.LoadFromSettings();
+        PersistSettings();
+    }
+
+    /// <summary>
+    /// เมนูด่วน：在游戏上方打开 / 关闭。打开时记住当前前台的游戏窗口，关闭后把焦点还给它。
+    /// </summary>
+    private void ToggleQuickMenu()
+    {
+        if (_quickMenu is null) return;
+
+        if (_quickMenu.IsOpen)
+        {
+            _quickMenu.CloseMenu();
+            return;
+        }
+
+        _operations.Cancel();
+        var foreground = CaptureContext.Foreground;
+        _crosshair?.Follow(foreground);
+        _ruler?.Follow(foreground);
+        _quickMenu.Open(CaptureContext.IsExternal(foreground) ? foreground : _crosshair?.GameWindow ?? IntPtr.Zero);
+    }
+
+    /// <summary>เมนูด่วน改了任何一项：立即应用到 HUD 与准星（保存在菜单关闭时统一做）。</summary>
+    private void ApplyQuickMenuChange()
+    {
+        _settings.Crosshair.Clamp();
+        _hud?.ApplySettings(_settings.Hud);
+        _debugOverlay?.ApplySettings(_settings.Hud, _settings.Debug);
+        _tray?.UpdateState(_settings.Hud.Visible, _settings.Debug.Enabled, _settings.Hud.PositionUnlocked);
+        _crosshair?.Refresh();
     }
 
     private void ToggleHud()
@@ -1023,6 +1118,7 @@ public partial class App : Application
 
             ApplyStartupRegistration();
             RegisterHotkeys();
+            if (_quickMenu?.IsOpen == true) _quickMenu.LoadFromSettings();
             PersistSettings();
         }
         catch (Exception ex)
@@ -1067,6 +1163,8 @@ public partial class App : Application
 
             _hud?.Dispose();
             _ruler?.Dispose();
+            _crosshair?.Dispose();
+            _quickMenu?.ForceClose();
             _settingsWindow?.Close();
             _overlay?.Close();
             _debugOverlay?.Close();

@@ -20,6 +20,12 @@ public enum HotkeyAction
 
     /// <summary>循环切换武器（ซู-ปืนครก）。</summary>
     CycleWeapon,
+
+    /// <summary>เปิด/ปิดเป้ากลางจอ（ซู-ปืนครก）。</summary>
+    ToggleCrosshair,
+
+    /// <summary>เมนูด่วนทับเกม（ซู-ปืนครก）。</summary>
+    QuickMenu,
 }
 
 public sealed class HotkeyPressedEventArgs : EventArgs

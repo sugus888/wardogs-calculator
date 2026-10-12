@@ -23,6 +23,9 @@ public sealed class MortarHudSettings
     public DebugSettings Debug { get; set; } = new();
     public RulerSettings Ruler { get; set; } = new();
 
+    /// <summary>เป้ากลางจอ（ซู-ปืนครก）。</summary>
+    public CrosshairSettings Crosshair { get; set; } = new();
+
     public MortarHudSettings Clone() => new()
     {
         SchemaVersion = SchemaVersion,
@@ -33,5 +36,6 @@ public sealed class MortarHudSettings
         Ocr = Ocr.Clone(),
         Debug = Debug.Clone(),
         Ruler = Ruler.Clone(),
+        Crosshair = Crosshair.Clone(),
     };
 }
