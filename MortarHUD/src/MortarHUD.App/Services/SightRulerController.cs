@@ -35,11 +35,30 @@ public sealed class SightRulerController : IDisposable
         Refresh();
     }
 
+    /// <summary>当前是否处于「显示」状态（未被 F10 收起）。</summary>
+    public bool Visible => _visible;
+
+    /// <summary>直接设定显示状态（เมนูด่วน / 首次启用时用）。</summary>
+    public void SetVisible(bool visible)
+    {
+        _visible = visible;
+        Refresh();
+    }
+
     private void OnTick(object? sender, EventArgs e) => Refresh();
 
     public void Refresh()
     {
         var settings = _settings();
+
+        // ซู-ปืนครก V0.4：以前只有采集过坐标之后才知道游戏窗口，没采集就按 F10 什么都不显示。
+        // 现在和准星一样，前台是全屏游戏就自动跟随。
+        var foreground = CaptureContext.Foreground;
+        if (foreground != _gameWindow && Services.FullScreenGame.IsFullScreen(foreground))
+        {
+            _gameWindow = foreground;
+        }
+
         if (!settings.Ruler.Enabled || !settings.Hud.Visible || !_visible || _gameWindow == IntPtr.Zero
             || CaptureContext.Foreground != _gameWindow || !CaptureContext.TryGetClientBounds(_gameWindow, out var bounds))
         {

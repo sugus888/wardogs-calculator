@@ -224,7 +224,8 @@ public sealed class CoordinateRecognizer
     /// </summary>
     private static RecognitionOutcome Aggregate(List<RecognitionAttempt> attempts, TimeSpan totalTime)
     {
-        var successes = attempts.Where(a => a.Success).ToList();
+        // ซู-ปืนครก：裁决引擎的读数不参与普通投票，只在主引擎分歧时用来挑出其中一组。
+        var successes = attempts.Where(a => a.Success && !IsTieBreak(a)).ToList();
 
         if (successes.Count == 0)
         {
@@ -244,6 +245,19 @@ public sealed class CoordinateRecognizer
         // 也就是 AutoCandidates 里那个「为什么是 C 而不是 A」的问题。
         if (groups.Count > 1)
         {
+            if (TryBreakTie(groups, attempts) is { } chosen)
+            {
+                return new RecognitionOutcome
+                {
+                    Success = true,
+                    Coordinate = chosen[0].Coordinate,
+                    RawText = chosen[0].RawText,
+                    Confidence = ComputeConfidence(chosen.Max(a => a.Confidence), chosen.Count, attempts.Count(a => !IsTieBreak(a))),
+                    Attempts = attempts,
+                    TotalTime = totalTime,
+                };
+            }
+
             return RecognitionOutcome.Failed("PIPELINE_DISAGREEMENT", attempts, totalTime);
         }
 
@@ -254,7 +268,7 @@ public sealed class CoordinateRecognizer
             Success = true,
             Coordinate = winner.Coordinate,
             RawText = winner.RawText,
-            Confidence = ComputeConfidence(best.Max(a => a.Confidence), best.Count, attempts.Count),
+            Confidence = ComputeConfidence(best.Max(a => a.Confidence), best.Count, attempts.Count(a => !IsTieBreak(a))),
             Attempts = attempts,
             TotalTime = totalTime,
         };
@@ -269,6 +283,41 @@ public sealed class CoordinateRecognizer
     /// 而这两者的排查方向完全相反：前者要挪 ROI，后者要调解析或预处理。
     /// 这里把它们分开，日志里一眼就能看出该往哪查。
     /// </remarks>
+    private static bool IsTieBreak(RecognitionAttempt attempt)
+        => string.Equals(attempt.Engine, TemplateOcrEngine.TieBreakName, StringComparison.Ordinal);
+
+    /// <summary>
+    /// 主引擎（Tesseract）读出了两个以上不同的坐标时，用独立的模板引擎裁决（ซู-ปืนครก V0.4）。
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// 实机采集（2560x1600，150%）里 17 次 PIPELINE_DISAGREEMENT 全是 Tesseract 把 3 读成 5 之类，
+    /// 预处理后的图其实很干净；用该分辨率下学到的字形做模板匹配，17 次都读对了。
+    /// </para>
+    /// <para>
+    /// 安全边界：裁决引擎<strong>不能自己造出读数</strong>，只能在主引擎已有的候选里挑一组；
+    /// 裁决引擎自己的所有有效读数必须完全一致，并且恰好等于其中一组，否则仍判分歧失败。
+    /// 两种原理不同的方法给出同一个值，才采用。
+    /// </para>
+    /// </remarks>
+    private static List<RecognitionAttempt>? TryBreakTie(
+        List<List<RecognitionAttempt>> groups, List<RecognitionAttempt> attempts)
+    {
+        var votes = attempts.Where(a => a.Success && IsTieBreak(a)).ToList();
+        if (votes.Count == 0 || GroupByCoordinate(votes).Count != 1)
+        {
+            return null;
+        }
+
+        var vote = votes[0].Coordinate!.Value;
+        var matching = groups.Where(g =>
+                Math.Abs(g[0].Coordinate!.Value.X - vote.X) < AgreementTolerance
+                && Math.Abs(g[0].Coordinate!.Value.Y - vote.Y) < AgreementTolerance)
+            .ToList();
+
+        return matching.Count == 1 ? matching[0] : null;
+    }
+
     private static string DiagnoseFailure(List<RecognitionAttempt> attempts)
     {
         // 引擎侧就没出文本：ROI 多半没框住坐标读数。

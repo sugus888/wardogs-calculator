@@ -462,7 +462,16 @@ public partial class App : Application
             MinimumConfidence = _settings.Ocr.MinimumConfidence,
         });
 
-        var engines = OcrEngineFactory.Resolve(_settings.Ocr.Engine, _settings.Ocr, _settings.Ocr.TessdataPath).ToList();
+        IReadOnlyList<ICoordinateOcrEngine> resolved = OcrEngineFactory.Resolve(_settings.Ocr.Engine, _settings.Ocr, _settings.Ocr.TessdataPath);
+
+        // ซู-ปืนครก：Auto 模式下追加模板裁决引擎，只在 Tesseract 分歧时用。
+        if (string.IsNullOrWhiteSpace(_settings.Ocr.Engine)
+            || string.Equals(_settings.Ocr.Engine, OcrEngineNames.Auto, StringComparison.OrdinalIgnoreCase))
+        {
+            resolved = OcrEngineFactory.WithTieBreak(resolved);
+        }
+
+        var engines = resolved.ToList();
         _ocrEngines = engines;
         var preprocessors = PreprocessorFactory.ResolveCandidates(_settings.Ocr.Preprocessor);
 
@@ -505,7 +514,9 @@ public partial class App : Application
             SelectWeapon,
             ClearTarget,
             ShowSettings,
-            () => DescribeHotkey(_settings.Hotkeys.QuickMenu));
+            () => DescribeHotkey(_settings.Hotkeys.QuickMenu),
+            SetRulerFromMenu,
+            () => _ruler?.Visible ?? true);
         _quickMenu.MenuClosed += (_, _) => PersistSettings();
 
         _tray = new TrayIcon();
@@ -620,7 +631,8 @@ public partial class App : Application
         yield return (HotkeyAction.CycleWeapon, _settings.Hotkeys.CycleWeapon);
         yield return (HotkeyAction.ToggleCrosshair, _settings.Hotkeys.ToggleCrosshair);
         yield return (HotkeyAction.QuickMenu, _settings.Hotkeys.QuickMenu);
-        if (_settings.Ruler.Enabled) yield return (HotkeyAction.ToggleRuler, _settings.Ruler.ToggleHotkey);
+        // ซู-ปืนครก V0.4：始终注册，未启用时按 F10 直接启用并显示（以前未启用时这个键根本不存在）。
+        yield return (HotkeyAction.ToggleRuler, _settings.Ruler.ToggleHotkey);
     }
 
     private void OnHotkeyPressed(object? sender, HotkeyPressedEventArgs e)
@@ -660,7 +672,7 @@ public partial class App : Application
                 case HotkeyAction.ToggleRuler:
                     _operations.Cancel();
                     _ruler?.Follow(CaptureContext.Foreground);
-                    _ruler?.Toggle();
+                    ToggleRuler();
                     break;
             }
         });
@@ -1017,6 +1029,38 @@ public partial class App : Application
 
         _session.ClearTarget();
         _hud.Refresh();
+    }
+
+    /// <summary>
+    /// F10：未启用时启用并显示；已启用时显示 / 收起。
+    /// </summary>
+    /// <remarks>
+    /// 以前标尺默认关闭、且关闭时 F10 不注册；启用后第一次按 F10 反而是「收起」——
+    /// 用户按了几次都看不到标尺，以为程序坏了。
+    /// </remarks>
+    private void ToggleRuler()
+    {
+        if (_ruler is null) return;
+
+        if (!_settings.Ruler.Enabled)
+        {
+            _settings.Ruler.Enabled = true;
+            _ruler.SetVisible(true);
+            PersistSettings();
+        }
+        else
+        {
+            _ruler.Toggle();
+        }
+
+        _quickMenu?.LoadFromSettings();
+    }
+
+    /// <summary>เมนูด่วนเปิด/ปิดไม้บรรทัด。</summary>
+    private void SetRulerFromMenu(bool enabled)
+    {
+        _settings.Ruler.Enabled = enabled;
+        _ruler?.SetVisible(enabled);
     }
 
     private void ToggleCrosshair()

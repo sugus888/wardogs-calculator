@@ -7,7 +7,12 @@ public static class GlyphAtlasLocator
 {
     public const string FolderName = "glyphs";
 
-    public static string Resolve(string? configuredPath = null)
+    /// <summary>ซู-ปืนครก：从 2560x1600 实机采集学到的字形，只用于 Tesseract 分歧时的裁决。</summary>
+    public const string TieBreakFolderName = "glyphs-sumortar";
+
+    public static string Resolve(string? configuredPath = null) => Resolve(configuredPath, FolderName);
+
+    public static string Resolve(string? configuredPath, string folderName)
     {
         if (!string.IsNullOrWhiteSpace(configuredPath) && IsUsable(configuredPath))
         {
@@ -16,7 +21,7 @@ public static class GlyphAtlasLocator
 
         var baseDirectory = AppContext.BaseDirectory;
 
-        foreach (var candidate in EnumerateCandidates(baseDirectory))
+        foreach (var candidate in EnumerateCandidates(baseDirectory, folderName))
         {
             if (IsUsable(candidate))
             {
@@ -24,20 +29,20 @@ public static class GlyphAtlasLocator
             }
         }
 
-        return Path.Combine(baseDirectory, "Models", FolderName);
+        return Path.Combine(baseDirectory, "Models", folderName);
     }
 
-    private static IEnumerable<string> EnumerateCandidates(string baseDirectory)
+    private static IEnumerable<string> EnumerateCandidates(string baseDirectory, string folderName)
     {
-        yield return Path.Combine(baseDirectory, "Models", FolderName);
-        yield return Path.Combine(baseDirectory, FolderName);
+        yield return Path.Combine(baseDirectory, "Models", folderName);
+        yield return Path.Combine(baseDirectory, folderName);
 
         var directory = new DirectoryInfo(baseDirectory);
 
         // 开发时从 bin 目录往上找项目目录。
         for (var depth = 0; depth < 6 && directory is not null; depth++)
         {
-            yield return Path.Combine(directory.FullName, "Models", FolderName);
+            yield return Path.Combine(directory.FullName, "Models", folderName);
             directory = directory.Parent;
         }
     }

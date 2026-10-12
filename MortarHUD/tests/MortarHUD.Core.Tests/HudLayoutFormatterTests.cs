@@ -25,7 +25,7 @@ public class HudLayoutFormatterTests
     public void Compact_DefaultTheme_ProducesDocumentedText()
     {
         var session = CreateSolvedSession();
-        var hud = new HudSettings { CurrentTheme = HudThemeLibrary.CreateDefaultGreen() };
+        var hud = new HudSettings { CurrentTheme = HudThemeLibrary.CreateDefaultGreen(), ShowDirection = false };
 
         var lines = HudLayoutFormatter.BuildLines(session, hud);
 
@@ -65,7 +65,7 @@ public class HudLayoutFormatterTests
     public void Minimal_HidesLabels()
     {
         var session = CreateSolvedSession();
-        var hud = new HudSettings { CurrentTheme = HudThemeLibrary.CreateDefaultGreen() };
+        var hud = new HudSettings { CurrentTheme = HudThemeLibrary.CreateDefaultGreen(), ShowDirection = false };
         hud.CurrentTheme.Layout = HudLayout.Minimal;
 
         var lines = HudLayoutFormatter.BuildLines(session, hud);
@@ -78,7 +78,7 @@ public class HudLayoutFormatterTests
     public void Horizontal_PutsBothOnOneLine()
     {
         var session = CreateSolvedSession();
-        var hud = new HudSettings { CurrentTheme = HudThemeLibrary.CreateDefaultGreen() };
+        var hud = new HudSettings { CurrentTheme = HudThemeLibrary.CreateDefaultGreen(), ShowDirection = false };
         hud.CurrentTheme.Layout = HudLayout.Horizontal;
 
         var lines = HudLayoutFormatter.BuildLines(session, hud);
@@ -97,6 +97,7 @@ public class HudLayoutFormatterTests
             CurrentTheme = HudThemeLibrary.CreateDefaultGreen(),
             ShowGun = true,
             ShowTarget = true,
+            ShowDirection = false,
         };
         hud.CurrentTheme.Layout = HudLayout.Detailed;
 
@@ -114,7 +115,7 @@ public class HudLayoutFormatterTests
         var session = new MortarSession(new MortarCalculator(100.0));
         session.LockGun(new MapCoordinate(98.09, 109.78));
 
-        var hud = new HudSettings { CurrentTheme = HudThemeLibrary.CreateDefaultGreen() };
+        var hud = new HudSettings { CurrentTheme = HudThemeLibrary.CreateDefaultGreen(), ShowDirection = false };
         var lines = HudLayoutFormatter.BuildLines(session, hud);
 
         Assert.Equal("AZ  --", lines[0].ToText());

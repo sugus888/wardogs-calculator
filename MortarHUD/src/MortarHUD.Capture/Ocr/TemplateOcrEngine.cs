@@ -33,13 +33,32 @@ public sealed class TemplateOcrEngine : ICoordinateOcrEngine
     private readonly GlyphAtlas? _atlas;
     private bool _disposed;
 
-    public TemplateOcrEngine(string? atlasDirectory = null)
+    /// <summary>ซู-ปืนครก 裁决引擎的名字。<see cref="CoordinateRecognizer"/> 按这个名字识别它。</summary>
+    public const string TieBreakName = "Template-TieBreak";
+
+    public TemplateOcrEngine(string? atlasDirectory = null, string name = "Template")
     {
         AtlasDirectory = atlasDirectory ?? GlyphAtlasLocator.Resolve();
         _atlas = GlyphAtlas.TryLoad(AtlasDirectory);
+        Name = name;
     }
 
-    public string Name => "Template";
+    /// <summary>ซู-ปืนครก：用 2560x1600 字形库的裁决引擎。字形库缺失时返回 null。</summary>
+    public static TemplateOcrEngine? CreateTieBreak()
+    {
+        var engine = new TemplateOcrEngine(
+            GlyphAtlasLocator.Resolve(null, GlyphAtlasLocator.TieBreakFolderName), TieBreakName);
+
+        if (engine.IsAvailable)
+        {
+            return engine;
+        }
+
+        engine.Dispose();
+        return null;
+    }
+
+    public string Name { get; }
 
     public string AtlasDirectory { get; }
 

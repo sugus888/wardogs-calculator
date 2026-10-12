@@ -403,6 +403,7 @@ public static class StringsThai
         ["CrosshairHint"] = "เป้าจะแสดงเฉพาะกลางหน้าต่างเกมแบบเต็มจอ และไม่ได้อ่านข้อมูลใด ๆ จากเกม",
         ["ClearTarget"] = "ล้างเป้าที่บันทึก",
         ["AllSettings"] = "ตั้งค่าทั้งหมด…",
+        ["ShowDirection"] = "แสดงทิศ + ลูกศร",
     };
 
     public static bool TryGet(string key, out string value) => Table.TryGetValue(key, out value!);

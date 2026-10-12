@@ -36,10 +36,14 @@ public sealed class QuickMenuWindow : Window
     private readonly Action _onClearTarget;
     private readonly Action _onOpenAllSettings;
     private readonly Func<string> _hotkeyText;
+    private readonly Action<bool>? _onRulerChanged;
+    private readonly Func<bool>? _rulerVisible;
+    private readonly CheckBox _rulerEnabled = new();
 
     private readonly Dictionary<string, ToggleButton> _weaponButtons = new(StringComparer.Ordinal);
     private readonly CheckBox _hudVisible = new();
     private readonly CheckBox _showMil = new();
+    private readonly CheckBox _showDirection = new();
     private readonly Slider _hudFontSize = MakeSlider(12, 48, 1);
     private readonly Slider _hudOpacity = MakeSlider(0.2, 1, 0.05);
     private readonly CheckBox _crosshairEnabled = new();
@@ -64,8 +68,12 @@ public sealed class QuickMenuWindow : Window
         Action<string> onWeaponSelected,
         Action onClearTarget,
         Action onOpenAllSettings,
-        Func<string> hotkeyText)
+        Func<string> hotkeyText,
+        Action<bool>? onRulerChanged = null,
+        Func<bool>? rulerVisible = null)
     {
+        _onRulerChanged = onRulerChanged;
+        _rulerVisible = rulerVisible;
         _settings = settings;
         _onChanged = onChanged;
         _onWeaponSelected = onWeaponSelected;
@@ -244,6 +252,18 @@ public sealed class QuickMenuWindow : Window
         root.Children.Add(Check(_showMil, "ShowMil", v => _settings.Hud.ShowMil = v));
         root.Children.Add(Row("HudFontSize", _hudFontSize, v => _settings.Hud.CurrentTheme.FontSize = v, "0"));
         root.Children.Add(Row("HudOpacity", _hudOpacity, v => _settings.Hud.CurrentTheme.Opacity = v, "0.00"));
+        root.Children.Add(Check(_showDirection, "ShowDirection", v => _settings.Hud.ShowDirection = v));
+
+        // ---- ไม้บรรทัดศูนย์เล็ง
+        _rulerEnabled.Content = Loc.T("RulerEnable");
+        _rulerEnabled.Margin = new Thickness(0, 2, 0, 2);
+        _rulerEnabled.Click += (_, _) =>
+        {
+            if (_loading) return;
+            _onRulerChanged?.Invoke(_rulerEnabled.IsChecked == true);
+            _onChanged();
+        };
+        root.Children.Add(_rulerEnabled);
 
         // ---- เป้ากลางจอ
         root.Children.Add(Header("CrosshairSection"));
@@ -356,6 +376,8 @@ public sealed class QuickMenuWindow : Window
 
             _hudVisible.IsChecked = _settings.Hud.Visible;
             _showMil.IsChecked = _settings.Hud.ShowMil;
+            _showDirection.IsChecked = _settings.Hud.ShowDirection;
+            _rulerEnabled.IsChecked = _settings.Ruler.Enabled && (_rulerVisible?.Invoke() ?? true);
             _hudFontSize.Value = Math.Clamp(_settings.Hud.CurrentTheme.FontSize, _hudFontSize.Minimum, _hudFontSize.Maximum);
             _hudOpacity.Value = Math.Clamp(_settings.Hud.CurrentTheme.Opacity, _hudOpacity.Minimum, _hudOpacity.Maximum);
 

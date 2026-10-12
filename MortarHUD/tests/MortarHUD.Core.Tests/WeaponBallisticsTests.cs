@@ -134,7 +134,7 @@ public sealed class WeaponBallisticsTests
     {
         var theme = HudThemeLibrary.CreateDefaultGreen();
         theme.Layout = layout;
-        return new HudSettings { CurrentTheme = theme };
+        return new HudSettings { CurrentTheme = theme, ShowDirection = false };
     }
 
     /// <summary>示例目标约 152m，L81 射表给 829 MIL（与网页一致）。</summary>
@@ -220,5 +220,47 @@ public sealed class WeaponBallisticsTests
         Assert.NotNull(session.Target);
         Assert.Equal(MortarStatusKind.WeaponChanged, session.LastStatus);
         Assert.False(session.Elevation.InRange);
+    }
+
+    // ------------------------------------------------------------ ทิศ（V0.4）
+
+    [Theory]
+    [InlineData(0, "N ↑")]
+    [InlineData(22.4, "N ↑")]
+    [InlineData(22.5, "NE ↗")]
+    [InlineData(79, "E →")]
+    [InlineData(135, "SE ↘")]
+    [InlineData(180, "S ↓")]
+    [InlineData(225, "SW ↙")]
+    [InlineData(270, "W ←")]
+    [InlineData(315, "NW ↖")]
+    [InlineData(337.6, "N ↑")]
+    [InlineData(359.9, "N ↑")]
+    [InlineData(-90, "W ←")]
+    public void DirectionUsesEightCompassPoints(double degrees, string expected)
+    {
+        Assert.Equal(expected, HudLayoutFormatter.FormatDirection(degrees));
+    }
+
+    [Fact]
+    public void Compact_ShowsDirectionUnderAz()
+    {
+        var hud = Hud(HudLayout.Compact);
+        hud.ShowDirection = true;
+
+        var lines = HudLayoutFormatter.BuildLines(SolvedSession("mortar"), hud).Select(l => l.ToText()).ToList();
+
+        Assert.Equal(["L81", "AZ  079.0°", "DIR E →", "RNG 152m", "MIL 829"], lines);
+    }
+
+    [Fact]
+    public void Horizontal_PutsDirectionRightAfterAz()
+    {
+        var hud = Hud(HudLayout.Horizontal);
+        hud.ShowDirection = true;
+
+        var line = HudLayoutFormatter.BuildLines(SolvedSession("mortar"), hud).Single().ToText();
+
+        Assert.Equal("L81   AZ 079.0° E →   RNG 152m   MIL 829", line);
     }
 }

@@ -60,4 +60,21 @@ public static class OcrEngineFactory
         => [new TesseractOcrEngine(settings, tessdataPath), CreateTemplate()];
 
     private static ICoordinateOcrEngine CreateTemplate() => new TemplateOcrEngine();
+
+    /// <summary>
+    /// ซู-ปืนครก：在 Tesseract 集成后面追加只在分歧时投裁决票的模板引擎（见 CoordinateRecognizer）。
+    /// 只给 Tesseract 集成加；单独选模板引擎或字形库缺失时原样返回。
+    /// </summary>
+    public static IReadOnlyList<ICoordinateOcrEngine> WithTieBreak(IReadOnlyList<ICoordinateOcrEngine> engines)
+    {
+        ArgumentNullException.ThrowIfNull(engines);
+
+        if (engines.Count == 0 || engines.Any(e => e is not TesseractOcrEngine)
+            || TemplateOcrEngine.CreateTieBreak() is not { } tieBreak)
+        {
+            return engines;
+        }
+
+        return [.. engines, tieBreak];
+    }
 }

@@ -2,7 +2,6 @@ using System.Windows.Threading;
 using MortarHUD.App.Views;
 using MortarHUD.Core.Configuration;
 using MortarHUD.Platform.Windows.Mouse;
-using MortarHUD.Platform.Windows.WindowStyles;
 
 namespace MortarHUD.App.Services;
 
@@ -52,7 +51,7 @@ public sealed class CrosshairController : IDisposable
         var settings = _settings();
         var foreground = CaptureContext.Foreground;
 
-        if (CaptureContext.IsExternal(foreground) && foreground != _gameWindow && IsFullScreen(foreground))
+        if (foreground != _gameWindow && FullScreenGame.IsFullScreen(foreground))
         {
             _gameWindow = foreground;
         }
@@ -69,19 +68,6 @@ public sealed class CrosshairController : IDisposable
         }
 
         _window.Display(bounds, settings.Crosshair);
-    }
-
-    private static bool IsFullScreen(IntPtr window)
-    {
-        if (!CaptureContext.TryGetClientBounds(window, out var client))
-        {
-            return false;
-        }
-
-        var monitor = OverlayWindowController.GetMonitorBoundsForPoint(
-            client.X + client.Width / 2, client.Y + client.Height / 2);
-
-        return monitor != System.Drawing.Rectangle.Empty && client == monitor;
     }
 
     public void Dispose()

@@ -178,6 +178,19 @@ public sealed class SettingsStore
             settings.SchemaVersion = 6;
         }
 
+        // v6 → v7（ซู-ปืนครก V0.4）：ROI 往上扩 20px，避免切掉 y 行。只迁移仍是旧出厂值的配置。
+        if (settings.SchemaVersion < 7)
+        {
+            if (settings.Roi is { Width: RoiSettings.ReferenceWidth, Height: RoiSettings.LegacyHeight,
+                    OffsetX: RoiSettings.ReferenceOffsetX, OffsetY: RoiSettings.LegacyOffsetY })
+            {
+                settings.Roi.Height = RoiSettings.ReferenceHeight;
+                settings.Roi.OffsetY = RoiSettings.ReferenceOffsetY;
+            }
+
+            settings.SchemaVersion = 7;
+        }
+
         settings.Hud.CurrentTheme ??= HudThemeLibrary.CreateDefaultGreen();
 
         // ซู-ปืนครก 新增字段：显式 null 时补回默认值。

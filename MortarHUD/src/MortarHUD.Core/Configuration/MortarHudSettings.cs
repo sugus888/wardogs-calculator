@@ -6,7 +6,7 @@ namespace MortarHUD.Core.Configuration;
 public sealed class MortarHudSettings
 {
     /// <summary>当前 schema 版本。以后加字段时用它做 migration。</summary>
-    public const int CurrentSchemaVersion = 6;
+    public const int CurrentSchemaVersion = 7;
 
     public int SchemaVersion { get; set; } = CurrentSchemaVersion;
 

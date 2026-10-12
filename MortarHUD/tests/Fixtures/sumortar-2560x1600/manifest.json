@@ -1,0 +1,7 @@
+[
+  { "file": "220020_989_0b9db9.png", "expectedX": 49.31, "expectedY": 115.62, "tesseractDisagrees": true },
+  { "file": "220353_702_efcf54.png", "expectedX": 72.36, "expectedY": 106.37, "tesseractDisagrees": true },
+  { "file": "232107_062_b4df2b.png", "expectedX": 84.35, "expectedY": 71.41, "tesseractDisagrees": true },
+  { "file": "223120_902_80fc6e.png", "expectedX": 118.57, "expectedY": 70.46, "tesseractDisagrees": false },
+  { "file": "220958_134_ba0f96.png", "expectedX": 41.62, "expectedY": 118.37, "tesseractDisagrees": false }
+]

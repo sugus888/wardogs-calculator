@@ -405,6 +405,7 @@ public static class Strings
         ["CrosshairHint"] = ("准星只显示在全屏游戏窗口中央，不读取游戏数据。", "The crosshair is only drawn at the center of a full-screen game window and reads nothing from the game."),
         ["ClearTarget"] = ("清除目标", "Clear target"),
         ["AllSettings"] = ("全部设置…", "All settings…"),
+        ["ShowDirection"] = ("显示方向箭头", "Show direction arrow"),
     };
 
     public static string Lookup(string key, string language)

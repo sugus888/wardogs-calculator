@@ -66,7 +66,72 @@ public static class HudLayoutFormatter
             _ => BuildCompact(hud, hasSolution, bearing, range),
         };
 
+        lines = AppendDirection(lines, session, hud, theme.Layout, hasSolution);
         return AppendWeapon(lines, session, hud, theme.Layout, hasSolution);
+    }
+
+    // ------------------------------------------------------------ 方向（ซู-ปืนครก V0.4）
+
+    private static readonly (string Name, string Arrow)[] CompassPoints =
+    [
+        ("N", "↑"), ("NE", "↗"), ("E", "→"), ("SE", "↘"),
+        ("S", "↓"), ("SW", "↙"), ("W", "←"), ("NW", "↖"),
+    ];
+
+    /// <summary>方位角 → 八方位与箭头（北在上，地图方向）。每个方位覆盖 ±22.5°。</summary>
+    public static (string Name, string Arrow) CompassPoint(double degrees)
+    {
+        if (!double.IsFinite(degrees))
+        {
+            return CompassPoints[0];
+        }
+
+        var normalized = ((degrees % 360.0) + 360.0) % 360.0;
+        var index = (int)Math.Floor((normalized + 22.5) / 45.0) % 8;
+        return CompassPoints[index];
+    }
+
+    public static string FormatDirection(double degrees)
+    {
+        var (name, arrow) = CompassPoint(degrees);
+        return $"{name} {arrow}";
+    }
+
+    /// <summary>在 AZ 那一行后面插一行 DIR（单行布局里接在 AZ 后面）。极简布局不加。</summary>
+    private static IReadOnlyList<HudLine> AppendDirection(
+        IReadOnlyList<HudLine> lines, MortarSession session, HudSettings hud, HudLayout layout, bool hasSolution)
+    {
+        if (!hud.ShowDirection || !hud.ShowAz || layout == HudLayout.Minimal)
+        {
+            return lines;
+        }
+
+        var value = hasSolution ? FormatDirection(session.Solution.BearingDegrees) : "--";
+
+        if (layout == HudLayout.Horizontal)
+        {
+            return lines.Select(line =>
+            {
+                var index = line.Segments.ToList().FindIndex(s => s.Label == "AZ");
+                if (index < 0) return line;
+
+                var segments = line.Segments.ToList();
+                segments.Insert(index + 1, new HudSegment(" ", value, HudSegmentKind.Secondary) { Gap = 0 });
+                return new HudLine(segments);
+            }).ToList();
+        }
+
+        var result = new List<HudLine>(lines.Count + 1);
+        foreach (var line in lines)
+        {
+            result.Add(line);
+            if (line.Segments.Count > 0 && line.Segments[0].Label == "AZ")
+            {
+                result.Add(new HudLine([new HudSegment("DIR", value, HudSegmentKind.Secondary)]));
+            }
+        }
+
+        return result;
     }
 
     // ------------------------------------------------------------ 武器与 MIL（ซู-ปืนครก）

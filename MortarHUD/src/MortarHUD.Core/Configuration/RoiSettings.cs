@@ -20,9 +20,18 @@ public sealed class RoiSettings
 {
     /// <summary>与 1920x1080 参考分辨率对应的默认偏移。</summary>
     public const int ReferenceOffsetX = 5;
-    public const int ReferenceOffsetY = -74;
+    /// <summary>
+    /// ซู-ปืนครก V0.4：上沿多留 20px（1080p 基准）。2560x1600 实机采集里 y 行常被 ROI 上沿切掉一截
+    /// （Y_NOT_FOUND），而 y 行下方的布局不变，所以只往上扩，下沿保持原位。
+    /// </summary>
+    public const int ReferenceOffsetY = -94;
+
+    /// <summary>V0.3 及以前的上沿，迁移时用来判断用户有没有手动改过。</summary>
+    public const int LegacyOffsetY = -74;
+
+    public const int LegacyHeight = 96;
     public const int ReferenceWidth = 100;
-    public const int ReferenceHeight = 96;
+    public const int ReferenceHeight = 116;
 
     public int Width { get; set; } = ReferenceWidth;
 

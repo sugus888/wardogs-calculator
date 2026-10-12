@@ -63,7 +63,26 @@ public sealed class SettingsAndThemeTests : IDisposable
         var loaded = new SettingsStore(path).Load();
         Assert.Equal(expectedDelay, loaded.Hotkeys.AutoCalibrateDelayMs);
         Assert.Equal(expectedAttempts, loaded.Hotkeys.AutoCalibrateAttempts);
-        Assert.Equal(6, loaded.SchemaVersion);
+        Assert.Equal(MortarHudSettings.CurrentSchemaVersion, loaded.SchemaVersion);
+    }
+
+    /// <summary>v7（ซู-ปืนครก V0.4）：旧出厂 ROI 往上扩；手动改过的 ROI 保留。</summary>
+    [Theory]
+    [InlineData(-74, 96, -94, 116)]
+    [InlineData(-80, 96, -80, 96)]
+    [InlineData(-74, 120, -74, 120)]
+    public void MigrationV7ExtendsOnlyTheOldDefaultRoiUpwards(int offsetY, int height, int expectedOffsetY, int expectedHeight)
+    {
+        var path = Path.Combine(_sandbox, "settings.json");
+        File.WriteAllText(path, System.Text.Json.JsonSerializer.Serialize(new
+        {
+            schemaVersion = 6, roi = new { width = 100, height, offsetX = 5, offsetY },
+        }));
+        var loaded = new SettingsStore(path).Load();
+        Assert.Equal(expectedOffsetY, loaded.Roi.OffsetY);
+        Assert.Equal(expectedHeight, loaded.Roi.Height);
+        // 只往上扩：下沿不动。
+        Assert.Equal(offsetY + height, loaded.Roi.OffsetY + loaded.Roi.Height);
     }
 
     [Fact]

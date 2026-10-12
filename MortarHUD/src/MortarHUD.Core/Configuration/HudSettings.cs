@@ -37,6 +37,9 @@ public sealed class HudSettings
     /// <summary>显示当前武器名与射表 MIL（ซู-ปืนครก 新增）。</summary>
     public bool ShowMil { get; set; } = true;
 
+    /// <summary>ซู-ปืนครก V0.4：AZ 下面显示八方位 + 箭头（N ↑、NE ↗ …），防止转错方向。</summary>
+    public bool ShowDirection { get; set; } = true;
+
     /// <summary>方位角小数位。TDD §20 默认显示 079.0°，即 1 位。</summary>
     public int BearingDecimals { get; set; } = 1;
 
@@ -57,6 +60,7 @@ public sealed class HudSettings
         ShowGun = ShowGun,
         ShowTarget = ShowTarget,
         ShowMil = ShowMil,
+        ShowDirection = ShowDirection,
         BearingDecimals = BearingDecimals,
         RangeDecimals = RangeDecimals,
     };
